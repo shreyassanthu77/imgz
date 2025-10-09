@@ -19,7 +19,7 @@ pub const Options = struct {
 };
 
 pub const InternalOptions = struct {
-    has_libjpeg: bool = false,
+    libjpeg: ?*std.Build.Step.Compile = null,
 };
 
 pub fn get(
@@ -45,7 +45,7 @@ pub fn get(
     const has_liblerc = options.has_liblerc;
     const use_system_liblerc = options.use_system_liblerc;
 
-    const has_libjpeg = internal_options.has_libjpeg;
+    const has_libjpeg = internal_options.libjpeg != null;
 
     const tiff_mod = b.createModule(.{
         .target = target,
@@ -263,6 +263,10 @@ pub fn get(
         lib_tiff.installConfigHeader(tiffvers);
         lib_tiff.installConfigHeader(tif_config);
         lib_tiff.installConfigHeader(tiffconf);
+    }
+
+    if (internal_options.libjpeg) |libjpeg| {
+        lib_tiff.linkLibrary(libjpeg);
     }
 
     return lib_tiff;

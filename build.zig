@@ -81,10 +81,12 @@ fn buildImgz(b: *std.Build, options: Options) !*std.Build.Step.Compile {
         }),
     });
 
+    var maybe_libjpeg: ?*std.Build.Step.Compile = null;
     if (options.jpeg_turbo) |jpeg_turbo_options| {
         const jpeg_turbo = try JpegTurbo.get(b, target, optimize, jpeg_turbo_options);
         try imgz.installed_headers.appendSlice(jpeg_turbo.installed_headers.items);
         imgz.linkLibrary(jpeg_turbo);
+        maybe_libjpeg = jpeg_turbo;
     }
 
     if (options.spng) |spng_options| {
@@ -95,7 +97,7 @@ fn buildImgz(b: *std.Build, options: Options) !*std.Build.Step.Compile {
 
     if (options.tiff) |tiff_options| {
         const tiff = try Tiff.get(b, target, optimize, tiff_options, .{
-            .has_libjpeg = options.jpeg_turbo != null,
+            .libjpeg = maybe_libjpeg,
         });
         try imgz.installed_headers.appendSlice(tiff.installed_headers.items);
         imgz.linkLibrary(tiff);
