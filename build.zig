@@ -1,6 +1,7 @@
 const std = @import("std");
-const JpegTurbo = @import("formats/jpeg-turbo.zig");
 const Spng = @import("formats/spng.zig");
+const JpegTurbo = @import("formats/jpeg-turbo.zig");
+const Tiff = @import("formats/tiff.zig");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -14,16 +15,36 @@ pub fn build(b: *std.Build) !void {
     const jpeg_turbo_arith_dec = b.option(bool, "jpeg_turbo_arith_dec", "libjpeg-turbo: Enable arithmetic decoding") orelse true;
     const jpeg_turbo_simd = b.option(bool, "jpeg_turbo_simd", "libjpeg-turbo: Enable SIMD extensions") orelse true;
 
+    const enable_tiff = b.option(bool, "tiff", "libtiff: Enable") orelse true;
+    const tiff_has_liblzma = b.option(bool, "tiff_has_liblzma", "libtiff: Enable liblzma support") orelse true;
+    const tiff_use_system_liblzma = b.option(bool, "tiff_use_system_liblzma", "libtiff: Use system liblzma") orelse false;
+    const tiff_has_libwebp = b.option(bool, "tiff_has_libwebp", "libtiff: Enable libwebp support") orelse true;
+    const tiff_use_system_libwebp = b.option(bool, "tiff_use_system_libwebp", "libtiff: Use system libwebp") orelse false;
+    const tiff_has_libzstd = b.option(bool, "tiff_has_libzstd", "libtiff: Enable libzstd support") orelse true;
+    const tiff_use_system_libzstd = b.option(bool, "tiff_use_system_libzstd", "libtiff: Use system libzstd") orelse false;
+    const tiff_has_liblerc = b.option(bool, "tiff_has_liblerc", "libtiff: Enable liblerc support") orelse true;
+    const tiff_use_system_liblerc = b.option(bool, "tiff_use_system_liblerc", "libtiff: Use system liblerc") orelse false;
+
     const imgz = try get(b, .{
         .target = target,
         .optimize = optimize,
+        .spng = if (enable_spng) .{} else null,
         .jpeg_turbo = if (enable_jpeg_turbo) .{
             .pic = jpeg_turbo_pic,
             .arith_enc = jpeg_turbo_arith_enc,
             .arith_dec = jpeg_turbo_arith_dec,
             .simd = jpeg_turbo_simd,
         } else null,
-        .spng = if (enable_spng) .{} else null,
+        .tiff = if (enable_tiff) .{
+            .has_liblzma = tiff_has_liblzma,
+            .use_system_liblzma = tiff_use_system_liblzma,
+            .has_libwebp = tiff_has_libwebp,
+            .use_system_libwebp = tiff_use_system_libwebp,
+            .has_libzstd = tiff_has_libzstd,
+            .use_system_libzstd = tiff_use_system_libzstd,
+            .has_liblerc = tiff_has_liblerc,
+            .use_system_liblerc = tiff_use_system_liblerc,
+        } else null,
     });
     b.installArtifact(imgz);
 }
@@ -33,6 +54,7 @@ pub const Options = struct {
     optimize: std.builtin.OptimizeMode,
     jpeg_turbo: ?JpegTurbo.Options = null,
     spng: ?Spng.Options = null,
+    tiff: ?Tiff.Options = null,
 };
 
 pub fn get(b: *std.Build, options: Options) !*std.Build.Step.Compile {
@@ -58,6 +80,14 @@ pub fn get(b: *std.Build, options: Options) !*std.Build.Step.Compile {
         const spng = try Spng.get(b, target, optimize, spng_options);
         try imgz.installed_headers.appendSlice(spng.installed_headers.items);
         imgz.linkLibrary(spng);
+    }
+
+    if (options.tiff) |tiff_options| {
+        const tiff = try Tiff.get(b, target, optimize, tiff_options, .{
+            .has_libjpeg = options.jpeg_turbo != null,
+        });
+        try imgz.installed_headers.appendSlice(tiff.installed_headers.items);
+        imgz.linkLibrary(tiff);
     }
 
     return imgz;
