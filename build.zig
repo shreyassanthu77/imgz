@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) !void {
     const tiff_has_liblerc = b.option(bool, "tiff_has_liblerc", "libtiff: Enable liblerc support") orelse true;
     const tiff_use_system_liblerc = b.option(bool, "tiff_use_system_liblerc", "libtiff: Use system liblerc") orelse false;
 
-    const imgz = try get(b, .{
+    const imgz = try buildImgz(b, .{
         .target = target,
         .optimize = optimize,
         .spng = if (enable_spng) .{} else null,
@@ -58,6 +58,17 @@ pub const Options = struct {
 };
 
 pub fn get(b: *std.Build, options: Options) !*std.Build.Step.Compile {
+    const target = options.target;
+    const optimize = options.optimize;
+
+    const self = b.dependencyFromBuildZig(@This(), .{
+        .target = target,
+        .optimize = optimize,
+    });
+    return buildImgz(self.builder, options);
+}
+
+fn buildImgz(b: *std.Build, options: Options) !*std.Build.Step.Compile {
     const target = options.target;
     const optimize = options.optimize;
 
