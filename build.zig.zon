@@ -1,0 +1,21 @@
+.{
+    .name = .imgz,
+    .version = "0.0.1",
+
+    .minimum_zig_version = "0.15.1",
+    .paths = .{""},
+    .fingerprint = 0xbd095aa490f3a106,
+
+    // must be in sync with libjpeg_turbo_upstream dependency
+    .libjpeg_turbo = .{
+        .version = "3.1.2",
+        .jpeg_lib_version = 80,
+    },
+    .dependencies = .{
+        .libjpeg_turbo_upstream = .{
+            .url = "https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/3.1.2.zip",
+            .hash = "N-V-__8AAPdUlQAUAx3gzEYFfTSNog15JPi1d6S5uDyDt-qA",
+            .lazy = true,
+        },
+    },
+}
