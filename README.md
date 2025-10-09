@@ -41,3 +41,5 @@ pub fn build(b: *std.Build) void {
 - libjpeg-turbo
 - libspng
 - libtiff
+
+(PRs are welcome for more libraries :) )
