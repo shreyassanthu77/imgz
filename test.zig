@@ -29,34 +29,18 @@ test "spng encode" {
         @cInclude("spng.h");
     });
 
-    const image_data = @embedFile("test-images/orange.png");
-
-    const ctx = c.spng_ctx_new(0) orelse return error.FailedToCreateContext;
-    defer c.spng_ctx_free(ctx);
-    if (c.spng_set_png_buffer(ctx, image_data.ptr, image_data.len) != 0) {
-        return error.FailedToSetBuffer;
-    }
-
-    var size: usize = undefined;
-    if (c.spng_decoded_image_size(ctx, c.SPNG_FMT_RGBA8, &size) != 0) {
-        return error.FailedToGetSize;
-    }
-    const pixels = try std.testing.allocator.alloc(u8, size);
-    defer std.testing.allocator.free(pixels);
-    if (c.spng_decode_image(ctx, pixels.ptr, pixels.len, c.SPNG_FMT_RGBA8, c.SPNG_DECODE_TRNS) != 0) {
-        return error.FailedToDecode;
-    }
-
     const encode_ctx = c.spng_ctx_new(c.SPNG_CTX_ENCODER) orelse return error.FailedToCreateEncodeContext;
     defer c.spng_ctx_free(encode_ctx);
 
-    var ihdr: c.struct_spng_ihdr = undefined;
-    if (c.spng_get_ihdr(ctx, &ihdr) != 0) {
-        return error.FailedToGetIHDR;
-    }
-
-    ihdr.color_type = c.SPNG_COLOR_TYPE_TRUECOLOR_ALPHA;
-    ihdr.bit_depth = 8;
+    var ihdr: c.struct_spng_ihdr = .{
+        .width = 16,
+        .height = 16,
+        .bit_depth = 8,
+        .color_type = c.SPNG_COLOR_TYPE_TRUECOLOR_ALPHA,
+        .compression_method = 0,
+        .filter_method = 0,
+        .interlace_method = 0,
+    };
 
     if (c.spng_set_ihdr(encode_ctx, &ihdr) != 0) {
         return error.FailedToSetIHDR;
@@ -65,6 +49,9 @@ test "spng encode" {
     if (c.spng_set_option(encode_ctx, c.SPNG_ENCODE_TO_BUFFER, 1) != 0) {
         return error.FailedToSetOption;
     }
+
+    const pixels = try generateGradientPixels(std.testing.allocator, ihdr.width, ihdr.height, true);
+    defer std.testing.allocator.free(pixels);
 
     if (c.spng_encode_image(encode_ctx, pixels.ptr, pixels.len, c.SPNG_FMT_PNG, c.SPNG_ENCODE_FINALIZE) != 0) {
         return error.FailedToEncode;
@@ -77,7 +64,6 @@ test "spng encode" {
         return error.FailedToGetBuffer;
     }
 
-    // Verify that we have some output
     try std.testing.expect(out_len > 0);
 }
 
@@ -107,53 +93,32 @@ test "tiff decode" {
 }
 
 test "tiff encode" {
-    const spng_c = @cImport({
-        @cInclude("spng.h");
-    });
-    const tiff_c = @cImport({
+    const c = @cImport({
         @cInclude("tiffio.h");
     });
 
-    const image_data = @embedFile("test-images/orange.png");
+    const width: u32 = 16;
+    const height: u32 = 16;
 
-    const ctx = spng_c.spng_ctx_new(0) orelse return error.FailedToCreateContext;
-    defer spng_c.spng_ctx_free(ctx);
-    if (spng_c.spng_set_png_buffer(ctx, image_data.ptr, image_data.len) != 0) {
-        return error.FailedToSetBuffer;
-    }
-
-    var size: usize = undefined;
-    if (spng_c.spng_decoded_image_size(ctx, spng_c.SPNG_FMT_RGBA8, &size) != 0) {
-        return error.FailedToGetSize;
-    }
-    const pixels = try std.testing.allocator.alloc(u8, size);
+    const pixels = try generateGradientPixels(std.testing.allocator, width, height, true);
     defer std.testing.allocator.free(pixels);
-    if (spng_c.spng_decode_image(ctx, pixels.ptr, pixels.len, spng_c.SPNG_FMT_RGBA8, spng_c.SPNG_DECODE_TRNS) != 0) {
-        return error.FailedToDecode;
-    }
 
-    var ihdr: spng_c.struct_spng_ihdr = undefined;
-    if (spng_c.spng_get_ihdr(ctx, &ihdr) != 0) {
-        return error.FailedToGetIHDR;
-    }
-
-    // Now encode to TIFF
     const output_path = "test-images/temp_output.tiff";
-    const tif = tiff_c.TIFFOpen(output_path, "w") orelse return error.FailedToCreateTIFF;
-    defer _ = tiff_c.TIFFClose(tif);
+    const tif = c.TIFFOpen(output_path, "w") orelse return error.FailedToCreateTIFF;
+    defer _ = c.TIFFClose(tif);
     defer std.fs.cwd().deleteFile(output_path) catch {};
 
-    _ = tiff_c.TIFFSetField(tif, tiff_c.TIFFTAG_IMAGEWIDTH, @as(c_uint, ihdr.width));
-    _ = tiff_c.TIFFSetField(tif, tiff_c.TIFFTAG_IMAGELENGTH, @as(c_uint, ihdr.height));
-    _ = tiff_c.TIFFSetField(tif, tiff_c.TIFFTAG_SAMPLESPERPIXEL, @as(c_int, 4));
-    _ = tiff_c.TIFFSetField(tif, tiff_c.TIFFTAG_BITSPERSAMPLE, @as(c_int, 8));
-    _ = tiff_c.TIFFSetField(tif, tiff_c.TIFFTAG_ORIENTATION, @as(c_int, tiff_c.ORIENTATION_TOPLEFT));
-    _ = tiff_c.TIFFSetField(tif, tiff_c.TIFFTAG_PLANARCONFIG, @as(c_int, tiff_c.PLANARCONFIG_CONTIG));
-    _ = tiff_c.TIFFSetField(tif, tiff_c.TIFFTAG_PHOTOMETRIC, @as(c_int, tiff_c.PHOTOMETRIC_RGB));
-    _ = tiff_c.TIFFSetField(tif, tiff_c.TIFFTAG_COMPRESSION, @as(c_int, tiff_c.COMPRESSION_NONE));
-    _ = tiff_c.TIFFSetField(tif, tiff_c.TIFFTAG_ROWSPERSTRIP, @as(c_uint, ihdr.height));
+    _ = c.TIFFSetField(tif, c.TIFFTAG_IMAGEWIDTH, @as(c_uint, width));
+    _ = c.TIFFSetField(tif, c.TIFFTAG_IMAGELENGTH, @as(c_uint, height));
+    _ = c.TIFFSetField(tif, c.TIFFTAG_SAMPLESPERPIXEL, @as(c_int, 4));
+    _ = c.TIFFSetField(tif, c.TIFFTAG_BITSPERSAMPLE, @as(c_int, 8));
+    _ = c.TIFFSetField(tif, c.TIFFTAG_ORIENTATION, @as(c_int, c.ORIENTATION_TOPLEFT));
+    _ = c.TIFFSetField(tif, c.TIFFTAG_PLANARCONFIG, @as(c_int, c.PLANARCONFIG_CONTIG));
+    _ = c.TIFFSetField(tif, c.TIFFTAG_PHOTOMETRIC, @as(c_int, c.PHOTOMETRIC_RGB));
+    _ = c.TIFFSetField(tif, c.TIFFTAG_COMPRESSION, @as(c_int, c.COMPRESSION_NONE));
+    _ = c.TIFFSetField(tif, c.TIFFTAG_ROWSPERSTRIP, @as(c_uint, height));
 
-    if (tiff_c.TIFFWriteEncodedStrip(tif, @as(u32, 0), pixels.ptr, @as(c_long, @intCast(pixels.len))) == -1) {
+    if (c.TIFFWriteEncodedStrip(tif, @as(u32, 0), pixels.ptr, @as(c_long, @intCast(pixels.len))) == -1) {
         return error.FailedToEncode;
     }
 
@@ -162,84 +127,20 @@ test "tiff encode" {
 }
 
 test "jpeg-turbo decode" {
-    const spng_c = @cImport({
-        @cInclude("spng.h");
-    });
     const jpeg_c = @cImport({
         @cInclude("stddef.h");
         @cInclude("stdio.h");
         @cInclude("jpeglib.h");
     });
 
-    const image_data = @embedFile("test-images/orange.png");
+    const jpeg_data = @embedFile("test-images/orange.jpeg");
 
-    const ctx = spng_c.spng_ctx_new(0) orelse return error.FailedToCreateContext;
-    defer spng_c.spng_ctx_free(ctx);
-    if (spng_c.spng_set_png_buffer(ctx, image_data.ptr, image_data.len) != 0) {
-        return error.FailedToSetBuffer;
-    }
-
-    var size: usize = undefined;
-    if (spng_c.spng_decoded_image_size(ctx, spng_c.SPNG_FMT_RGBA8, &size) != 0) {
-        return error.FailedToGetSize;
-    }
-    const rgba_pixels = try std.testing.allocator.alloc(u8, size);
-    defer std.testing.allocator.free(rgba_pixels);
-    if (spng_c.spng_decode_image(ctx, rgba_pixels.ptr, rgba_pixels.len, spng_c.SPNG_FMT_RGBA8, spng_c.SPNG_DECODE_TRNS) != 0) {
-        return error.FailedToDecode;
-    }
-
-    var ihdr: spng_c.struct_spng_ihdr = undefined;
-    if (spng_c.spng_get_ihdr(ctx, &ihdr) != 0) {
-        return error.FailedToGetIHDR;
-    }
-
-    // Convert RGBA to RGB
-    const rgb_pixels = try std.testing.allocator.alloc(u8, ihdr.width * ihdr.height * 3);
-    defer std.testing.allocator.free(rgb_pixels);
-    for (0..ihdr.height) |y| {
-        for (0..ihdr.width) |x| {
-            const rgba_idx = (y * ihdr.width + x) * 4;
-            const rgb_idx = (y * ihdr.width + x) * 3;
-            rgb_pixels[rgb_idx] = rgba_pixels[rgba_idx];
-            rgb_pixels[rgb_idx + 1] = rgba_pixels[rgba_idx + 1];
-            rgb_pixels[rgb_idx + 2] = rgba_pixels[rgba_idx + 2];
-        }
-    }
-
-    // Encode to JPEG in memory
-    var jpeg_buffer: ?[*]u8 = null;
-    var jpeg_size: c_ulong = 0;
-    var cinfo: jpeg_c.jpeg_compress_struct = undefined;
-    var jerr: jpeg_c.jpeg_error_mgr = undefined;
-    cinfo.err = jpeg_c.jpeg_std_error(&jerr);
-    jpeg_c.jpeg_create_compress(&cinfo);
-    defer jpeg_c.jpeg_destroy_compress(&cinfo);
-    jpeg_c.jpeg_mem_dest(&cinfo, &jpeg_buffer, &jpeg_size);
-    cinfo.image_width = ihdr.width;
-    cinfo.image_height = ihdr.height;
-    cinfo.input_components = 3;
-    cinfo.in_color_space = jpeg_c.JCS_RGB;
-    jpeg_c.jpeg_set_defaults(&cinfo);
-    jpeg_c.jpeg_set_quality(&cinfo, 90, 1);
-    jpeg_c.jpeg_start_compress(&cinfo, 1);
-    const row_stride = ihdr.width * 3;
-    var row_ptr: [*]u8 = rgb_pixels.ptr;
-    while (cinfo.next_scanline < cinfo.image_height) {
-        var row_pointers: [1][*]u8 = .{row_ptr};
-        _ = jpeg_c.jpeg_write_scanlines(&cinfo, @as([*c][*c]u8, @ptrCast(&row_pointers)), 1);
-        row_ptr += row_stride;
-    }
-    jpeg_c.jpeg_finish_compress(&cinfo);
-    try std.testing.expect(jpeg_size > 0);
-
-    // Now decode the JPEG
     var dinfo: jpeg_c.jpeg_decompress_struct = undefined;
     var djerr: jpeg_c.jpeg_error_mgr = undefined;
     dinfo.err = jpeg_c.jpeg_std_error(&djerr);
     jpeg_c.jpeg_create_decompress(&dinfo);
     defer jpeg_c.jpeg_destroy_decompress(&dinfo);
-    jpeg_c.jpeg_mem_src(&dinfo, jpeg_buffer, jpeg_size);
+    jpeg_c.jpeg_mem_src(&dinfo, jpeg_data.ptr, @as(c_ulong, @intCast(jpeg_data.len)));
     if (jpeg_c.jpeg_read_header(&dinfo, 1) != jpeg_c.JPEG_HEADER_OK) {
         return error.FailedToReadHeader;
     }
@@ -258,50 +159,17 @@ test "jpeg-turbo decode" {
 }
 
 test "jpeg-turbo encode" {
-    const spng_c = @cImport({
-        @cInclude("spng.h");
-    });
     const jpeg_c = @cImport({
         @cInclude("stddef.h");
         @cInclude("stdio.h");
         @cInclude("jpeglib.h");
     });
 
-    const image_data = @embedFile("test-images/orange.png");
+    const width: u32 = 16;
+    const height: u32 = 16;
 
-    const ctx = spng_c.spng_ctx_new(0) orelse return error.FailedToCreateContext;
-    defer spng_c.spng_ctx_free(ctx);
-    if (spng_c.spng_set_png_buffer(ctx, image_data.ptr, image_data.len) != 0) {
-        return error.FailedToSetBuffer;
-    }
-
-    var size: usize = undefined;
-    if (spng_c.spng_decoded_image_size(ctx, spng_c.SPNG_FMT_RGBA8, &size) != 0) {
-        return error.FailedToGetSize;
-    }
-    const rgba_pixels = try std.testing.allocator.alloc(u8, size);
-    defer std.testing.allocator.free(rgba_pixels);
-    if (spng_c.spng_decode_image(ctx, rgba_pixels.ptr, rgba_pixels.len, spng_c.SPNG_FMT_RGBA8, spng_c.SPNG_DECODE_TRNS) != 0) {
-        return error.FailedToDecode;
-    }
-
-    var ihdr: spng_c.struct_spng_ihdr = undefined;
-    if (spng_c.spng_get_ihdr(ctx, &ihdr) != 0) {
-        return error.FailedToGetIHDR;
-    }
-
-    // Convert RGBA to RGB
-    const rgb_pixels = try std.testing.allocator.alloc(u8, ihdr.width * ihdr.height * 3);
+    const rgb_pixels = try generateGradientPixels(std.testing.allocator, width, height, false);
     defer std.testing.allocator.free(rgb_pixels);
-    for (0..ihdr.height) |y| {
-        for (0..ihdr.width) |x| {
-            const rgba_idx = (y * ihdr.width + x) * 4;
-            const rgb_idx = (y * ihdr.width + x) * 3;
-            rgb_pixels[rgb_idx] = rgba_pixels[rgba_idx];
-            rgb_pixels[rgb_idx + 1] = rgba_pixels[rgba_idx + 1];
-            rgb_pixels[rgb_idx + 2] = rgba_pixels[rgba_idx + 2];
-        }
-    }
 
     // Encode to JPEG in memory
     var jpeg_buffer: ?[*]u8 = null;
@@ -312,14 +180,14 @@ test "jpeg-turbo encode" {
     jpeg_c.jpeg_create_compress(&cinfo);
     defer jpeg_c.jpeg_destroy_compress(&cinfo);
     jpeg_c.jpeg_mem_dest(&cinfo, &jpeg_buffer, &jpeg_size);
-    cinfo.image_width = ihdr.width;
-    cinfo.image_height = ihdr.height;
+    cinfo.image_width = width;
+    cinfo.image_height = height;
     cinfo.input_components = 3;
     cinfo.in_color_space = jpeg_c.JCS_RGB;
     jpeg_c.jpeg_set_defaults(&cinfo);
     jpeg_c.jpeg_set_quality(&cinfo, 90, 1);
     jpeg_c.jpeg_start_compress(&cinfo, 1);
-    const row_stride = ihdr.width * 3;
+    const row_stride = width * 3;
     var row_ptr: [*]u8 = rgb_pixels.ptr;
     while (cinfo.next_scanline < cinfo.image_height) {
         var row_pointers: [1][*]u8 = .{row_ptr};
@@ -328,4 +196,24 @@ test "jpeg-turbo encode" {
     }
     jpeg_c.jpeg_finish_compress(&cinfo);
     try std.testing.expect(jpeg_size > 0);
+}
+
+fn generateGradientPixels(allocator: std.mem.Allocator, width: u32, height: u32, rgba: bool) ![]u8 {
+    var components: usize = 3;
+    if (rgba) components = 4;
+    const pixels = try allocator.alloc(u8, @as(usize, width) * @as(usize, height) * components);
+    const pixel_count = @as(usize, width) * @as(usize, height);
+    var i: usize = 0;
+    while (i < pixel_count) : (i += 1) {
+        const x: u32 = @intCast(i % width);
+        const y: u32 = @intCast(i / width);
+        const base = i * components;
+        pixels[base + 0] = @intCast((x * 255) / (width - 1));
+        pixels[base + 1] = @intCast((y * 255) / (height - 1));
+        pixels[base + 2] = 0;
+        if (rgba) {
+            pixels[base + 3] = 255;
+        }
+    }
+    return pixels;
 }
