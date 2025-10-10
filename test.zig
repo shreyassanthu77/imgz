@@ -5,11 +5,7 @@ test "spng decode" {
         @cInclude("spng.h");
     });
 
-    const image_path = "test-images/orange.png";
-    const file = try std.fs.cwd().openFile(image_path, .{});
-    defer file.close();
-    const image_data = try file.readToEndAlloc(std.testing.allocator, std.math.maxInt(u64));
-    defer std.testing.allocator.free(image_data);
+    const image_data = @embedFile("test-images/orange.png");
 
     const ctx = c.spng_ctx_new(0) orelse return error.FailedToCreateContext;
     defer c.spng_ctx_free(ctx);
@@ -33,11 +29,7 @@ test "spng encode" {
         @cInclude("spng.h");
     });
 
-    const image_path = "test-images/orange.png";
-    const file = try std.fs.cwd().openFile(image_path, .{});
-    defer file.close();
-    const image_data = try file.readToEndAlloc(std.testing.allocator, std.math.maxInt(u64));
-    defer std.testing.allocator.free(image_data);
+    const image_data = @embedFile("test-images/orange.png");
 
     const ctx = c.spng_ctx_new(0) orelse return error.FailedToCreateContext;
     defer c.spng_ctx_free(ctx);
