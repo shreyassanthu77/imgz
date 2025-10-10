@@ -17,7 +17,7 @@ pub fn get(
     const enable_pic = options.pic;
     const enable_arith_enc = options.arith_enc;
     const enable_arith_dec = options.arith_dec;
-    const with_simd = options.simd;
+    const with_simd = options.simd and !target.result.cpu.arch.isRISCV();
 
     const libjpeg_turbo_version_number = computeVersionNumber(conf.version);
     const build_date = try computeBuildDate(b.allocator);
@@ -400,6 +400,9 @@ pub fn get(
                         .flags = &.{"-std=c89"},
                         .root = j.path("."),
                     });
+                },
+                .riscv64, .riscv32 => {
+                    // No SIMD support for RISC-V architecture
                 },
                 else => {
                     // No SIMD for unsupported architectures
