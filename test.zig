@@ -103,10 +103,14 @@ test "tiff encode" {
     const pixels = try generateGradientPixels(std.testing.allocator, width, height, true);
     defer std.testing.allocator.free(pixels);
 
-    const output_path = "test-images/temp_output.tiff";
-    const tif = c.TIFFOpen(output_path, "w") orelse return error.FailedToCreateTIFF;
+    var temp_dir = std.testing.tmpDir(.{});
+    defer temp_dir.cleanup();
+    (try temp_dir.dir.createFile("temp_output.tiff", .{})).close();
+    var output_path_buf = std.mem.zeroes([std.fs.max_path_bytes]u8);
+    const output_path = try temp_dir.dir.realpathZ("temp_output.tiff", &output_path_buf);
+
+    const tif = c.TIFFOpen(output_path.ptr, "w") orelse return error.FailedToCreateTIFF;
     defer _ = c.TIFFClose(tif);
-    defer std.fs.cwd().deleteFile(output_path) catch {};
 
     _ = c.TIFFSetField(tif, c.TIFFTAG_IMAGEWIDTH, @as(c_uint, width));
     _ = c.TIFFSetField(tif, c.TIFFTAG_IMAGELENGTH, @as(c_uint, height));
@@ -122,7 +126,7 @@ test "tiff encode" {
         return error.FailedToEncode;
     }
 
-    const stat = try std.fs.cwd().statFile(output_path);
+    const stat = try temp_dir.dir.statFile("temp_output.tiff");
     try std.testing.expect(stat.size > 0);
 }
 
