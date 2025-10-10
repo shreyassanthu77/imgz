@@ -67,6 +67,15 @@ const imgz_lib = try imgz_pkg.get(b, .{
     },
     .spng = .{},            // libspng (no options currently)
     .tiff = .{
+        // OpenGL header feature toggles
+        .has_glut_glut_h = false,
+        .has_gl_glut_h = false,
+        .has_gl_glu_h = false,
+        .has_gl_gl_h = false,
+        .has_opengl_glu_h = false,
+        .has_opengl_gl_h = false,
+
+        // Optional codec/backends
         .has_liblzma = false,
         .use_system_liblzma = false,
         .has_libwebp = false,
@@ -90,6 +99,9 @@ const imgz_lib = try imgz_pkg.get(b, .{
     .tiff = .{},
 });
 ```
+
+Notes:
+- The TIFF OpenGL options map to `HAVE_GL*`/`HAVE_OPENGL_*` checks in `tif_config.h`. They only control feature macros; they do not link OpenGL libraries for you.
 
 - When building this repo directly — available flags (defaults in parentheses):
   - `-Dspng` (true): enable libspng
