@@ -47,6 +47,18 @@ pub fn build(b: *std.Build) !void {
         } else null,
     });
     b.installArtifact(imgz);
+
+    const test_step = b.step("test", "Run tests");
+    const test_exe = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    test_exe.linkLibrary(imgz);
+    const run_test_exe = b.addRunArtifact(test_exe);
+    test_step.dependOn(&run_test_exe.step);
 }
 
 pub const Options = struct {
