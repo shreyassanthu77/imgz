@@ -10,7 +10,6 @@ pub fn build(b: *std.Build) !void {
     const enable_spng = b.option(bool, "spng", "libspng: Enable") orelse true;
 
     const enable_jpeg_turbo = b.option(bool, "jpeg_turbo", "libjpeg-turbo: Enable") orelse true;
-    const jpeg_turbo_pic = b.option(bool, "jpeg_turbo_pic", "libjpeg-turbo: Enable position independent code") orelse true;
     const jpeg_turbo_arith_enc = b.option(bool, "jpeg_turbo_arith_enc", "libjpeg-turbo: Enable arithmetic encoding") orelse true;
     const jpeg_turbo_arith_dec = b.option(bool, "jpeg_turbo_arith_dec", "libjpeg-turbo: Enable arithmetic decoding") orelse true;
     const jpeg_turbo_simd = b.option(bool, "jpeg_turbo_simd", "libjpeg-turbo: Enable SIMD extensions") orelse true;
@@ -30,7 +29,6 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
         .spng = if (enable_spng) .{} else null,
         .jpeg_turbo = if (enable_jpeg_turbo) .{
-            .pic = jpeg_turbo_pic,
             .arith_enc = jpeg_turbo_arith_enc,
             .arith_dec = jpeg_turbo_arith_dec,
             .simd = jpeg_turbo_simd,

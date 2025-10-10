@@ -2,7 +2,6 @@ const std = @import("std");
 const conf = @import("../build.zig.zon").libjpeg_turbo;
 
 pub const Options = struct {
-    pic: bool = true,
     arith_enc: bool = true,
     arith_dec: bool = true,
     simd: bool = true,
@@ -14,7 +13,6 @@ pub fn get(
     optimize: std.builtin.OptimizeMode,
     options: Options,
 ) !*std.Build.Step.Compile {
-    const enable_pic = options.pic;
     const enable_arith_enc = options.arith_enc;
     const enable_arith_dec = options.arith_dec;
     const with_simd = options.simd and !target.result.cpu.arch.isRISCV();
@@ -26,7 +24,7 @@ pub fn get(
         .target = target,
         .optimize = optimize,
         .link_libc = true,
-        .pic = enable_pic,
+        .pic = true,
     });
 
     const libjpeg = b.addLibrary(.{
@@ -267,7 +265,7 @@ pub fn get(
                     };
 
                     for (asm_files) |asm_file| {
-                        const obj_file = nasmCompile(b, j, target, enable_pic, "simd/x86_64", j.path(asm_file));
+                        const obj_file = nasmCompile(b, j, target, "simd/x86_64", j.path(asm_file));
                         libjpeg_mod.addObjectFile(obj_file);
                     }
 
@@ -326,7 +324,7 @@ pub fn get(
                     };
 
                     for (asm_files) |asm_file| {
-                        const obj_file = nasmCompile(b, j, target, enable_pic, "simd/i386", j.path(asm_file));
+                        const obj_file = nasmCompile(b, j, target, "simd/i386", j.path(asm_file));
                         libjpeg_mod.addObjectFile(obj_file);
                     }
 
@@ -450,7 +448,6 @@ fn nasmCompile(
     b: *std.Build,
     j: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
-    pic: bool,
     include_path: []const u8,
     asm_file: std.Build.LazyPath,
 ) std.Build.LazyPath {
@@ -481,7 +478,7 @@ fn nasmCompile(
         "-Isrc",
         b.fmt("-D{s}", .{D}),
         if (arch == .x86_64) "-D__x86_64__" else "",
-        if (pic) "-DPIC" else "",
+        "-DPIC",
         "-Isimd/nasm",
         b.fmt("-I{s}", .{include_path}),
         "-f",

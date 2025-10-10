@@ -61,7 +61,6 @@ const imgz_lib = try imgz_pkg.get(b, .{
     .target = target,
     .optimize = optimize,
     .jpeg_turbo = .{
-        .pic = true,        // position independent code
         .arith_enc = true,  // arithmetic encoding
         .arith_dec = true,  // arithmetic decoding
         .simd = true,       // SIMD extensions
@@ -95,7 +94,6 @@ const imgz_lib = try imgz_pkg.get(b, .{
 - When building this repo directly — available flags (defaults in parentheses):
   - `-Dspng` (true): enable libspng
   - `-Djpeg_turbo` (true): enable libjpeg-turbo
-  - `-Djpeg_turbo_pic` (true)
   - `-Djpeg_turbo_arith_enc` (true)
   - `-Djpeg_turbo_arith_dec` (true)
   - `-Djpeg_turbo_simd` (true)
