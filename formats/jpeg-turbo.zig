@@ -1,5 +1,10 @@
 const std = @import("std");
-const conf = @import("../build.zig.zon").libjpeg_turbo;
+
+// must be in sync with libjpeg_turbo_upstream dependency
+const conf = .{
+    .version = "3.1.2",
+    .jpeg_lib_version = 80,
+};
 
 pub const Options = struct {
     arith_enc: bool = true,
