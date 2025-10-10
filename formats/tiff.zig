@@ -245,16 +245,16 @@ pub fn get(
             tiff_mod.linkLibrary(zlib_dep.artifact("z"));
         }
 
-        if (use_system_liblzma or has_liblzma) {
+        if (use_system_liblzma and !has_liblzma) {
             tiff_mod.linkSystemLibrary("lzma", .{});
         }
-        if (use_system_liblerc or has_liblerc) {
+        if (use_system_liblerc and !has_liblerc) {
             tiff_mod.linkSystemLibrary("Lerc", .{});
         }
-        if (use_system_libzstd or has_libzstd) {
+        if (use_system_libzstd and !has_libzstd) {
             tiff_mod.linkSystemLibrary("zstd", .{});
         }
-        if (use_system_libwebp or has_libwebp) {
+        if (use_system_libwebp and !has_libwebp) {
             tiff_mod.linkSystemLibrary("webp", .{});
         }
 

@@ -16,13 +16,13 @@ pub fn build(b: *std.Build) !void {
     const jpeg_turbo_simd = b.option(bool, "jpeg_turbo_simd", "libjpeg-turbo: Enable SIMD extensions") orelse true;
 
     const enable_tiff = b.option(bool, "tiff", "libtiff: Enable") orelse true;
-    const tiff_has_liblzma = b.option(bool, "tiff_has_liblzma", "libtiff: Enable liblzma support") orelse true;
+    const tiff_has_liblzma = b.option(bool, "tiff_has_liblzma", "libtiff: Enable liblzma support") orelse false;
     const tiff_use_system_liblzma = b.option(bool, "tiff_use_system_liblzma", "libtiff: Use system liblzma") orelse false;
-    const tiff_has_libwebp = b.option(bool, "tiff_has_libwebp", "libtiff: Enable libwebp support") orelse true;
+    const tiff_has_libwebp = b.option(bool, "tiff_has_libwebp", "libtiff: Enable libwebp support") orelse false;
     const tiff_use_system_libwebp = b.option(bool, "tiff_use_system_libwebp", "libtiff: Use system libwebp") orelse false;
-    const tiff_has_libzstd = b.option(bool, "tiff_has_libzstd", "libtiff: Enable libzstd support") orelse true;
+    const tiff_has_libzstd = b.option(bool, "tiff_has_libzstd", "libtiff: Enable libzstd support") orelse false;
     const tiff_use_system_libzstd = b.option(bool, "tiff_use_system_libzstd", "libtiff: Use system libzstd") orelse false;
-    const tiff_has_liblerc = b.option(bool, "tiff_has_liblerc", "libtiff: Enable liblerc support") orelse true;
+    const tiff_has_liblerc = b.option(bool, "tiff_has_liblerc", "libtiff: Enable liblerc support") orelse false;
     const tiff_use_system_liblerc = b.option(bool, "tiff_use_system_liblerc", "libtiff: Use system liblerc") orelse false;
 
     const imgz = try buildImgz(b, .{
