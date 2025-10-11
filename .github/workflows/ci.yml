@@ -14,14 +14,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - target: x86_64-linux
-            os: ubuntu-latest
+          - os: ubuntu-latest
             run_tests: true
-          - target: x86_64-windows
-            os: windows-latest
+          - os: windows-latest
             run_tests: true
-          - target: aarch64-macos
-            os: macos-latest
+          - os: macos-latest
             run_tests: true
     defaults:
       run:
@@ -54,7 +51,7 @@ jobs:
       - name: Run tests
         if: matrix.run_tests == true
         run: |
-          zig build test --summary all
+          zig build test --summary all --verbose
 
       - name: Skip (runner not available)
         if: matrix.run_tests != true
