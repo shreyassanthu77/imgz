@@ -134,7 +134,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           merge-multiple: false
-        run: |
+      - run: |
           ls -R
 
       # - name: Create Release
