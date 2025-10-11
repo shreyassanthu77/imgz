@@ -30,8 +30,6 @@ pub fn build(b: *std.Build) !void {
     const webp_mux = b.option(bool, "webp_mux", "libwebp: Enable mux support") orelse true;
     const webp_threading = b.option(bool, "webp_threading", "libwebp: Enable threading") orelse true;
     const webp_simd = b.option(bool, "webp_simd", "libwebp: Enable SIMD") orelse true;
-    const webp_has_libjpeg = b.option(bool, "webp_has_libjpeg", "libwebp: Enable libjpeg support") orelse false;
-    const webp_use_system_libjpeg = b.option(bool, "webp_use_system_libjpeg", "libwebp: Use system libjpeg") orelse false;
 
     const imgz = try buildImgz(b, .{
         .target = target,
@@ -57,8 +55,6 @@ pub fn build(b: *std.Build) !void {
             .enable_mux = webp_mux,
             .enable_threading = webp_threading,
             .enable_simd = webp_simd,
-            .has_libjpeg = webp_has_libjpeg,
-            .use_system_libjpeg = webp_use_system_libjpeg,
         } else null,
     });
     b.installArtifact(imgz);
