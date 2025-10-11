@@ -124,7 +124,7 @@ jobs:
           zig build test -Dspng=false -Djpeg_turbo=false -Dtiff=false -Dwebp=true --summary all --verbose
 
   publish:
-    # if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
