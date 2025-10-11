@@ -36,6 +36,7 @@ pub fn build(b: *std.Build) !void {
         .jpeg_turbo = .{},
         .spng = .{},
         .tiff = .{},
+        .webp = .{},
     });
 
     exe.linkLibrary(imgz_lib);
@@ -79,12 +80,12 @@ const imgz_lib = try imgz_pkg.get(b, .{
          .has_opengl_glu_h = false,
          .has_opengl_gl_h = false,
      },
-     .webp = .{
-         .enable_encoding = true,
-         .enable_mux = true,
-         .enable_threading = true,
-         .enable_simd = true,
-     },
+      .webp = .{
+          .enable_encoding = true,
+          .enable_mux = true, // currently no effect (mux/demux not exposed)
+          .enable_threading = true,
+          .enable_simd = true,
+      },
 });
 ```
 
@@ -112,14 +113,20 @@ Notes:
   - `-Dtiff` (true): enable libtiff
   - `-Dtiff_has_liblzma` (false), `-Dtiff_use_system_liblzma` (false)
   - `-Dtiff_has_libzstd` (false), `-Dtiff_use_system_libzstd` (false)
-   - `-Dtiff_has_liblerc` (false), `-Dtiff_use_system_liblerc` (false)
+  - `-Dtiff_has_liblerc` (false), `-Dtiff_use_system_liblerc` (false)
+  - `-Dwebp` (true): enable libwebp
+  - `-Dwebp_encoding` (true), `-Dwebp_mux` (true)
+  - `-Dwebp_threading` (true), `-Dwebp_simd` (true)
 
+  Note: For TIFF extras, set `use_system_* = true` and leave `has_* = false` to link system libraries. Vendored liblzma/libzstd/liblerc are not included.
 Examples:
 
 ```sh
 zig build -Djpeg_turbo=false
-zig build -Dtiff_has_liblzma=true -Dtiff_use_system_liblzma=true
 zig build -Djpeg_turbo_simd=false   # if nasm is unavailable
+zig build -Dtiff_has_liblzma=true -Dtiff_use_system_liblzma=true
+zig build -Dwebp=false
+zig build -Dwebp_simd=false
 ```
 
 ## Testing
@@ -139,6 +146,7 @@ This package supports cross-compilation to all platforms supported by Zig. The u
 Notes:
 - x86/x86_64 SIMD for libjpeg-turbo uses NASM; install NASM or disable SIMD.
 - RISC-V has no libjpeg-turbo SIMD support (automatically disabled).
+- libwebp SIMD can be disabled with `.enable_simd = false` or `-Dwebp_simd=false`.
 
 ## Upstream Versions
 
