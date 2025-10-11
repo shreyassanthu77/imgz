@@ -98,10 +98,17 @@ pub fn build(b: *std.Build) !void {
             .tiff = .{},
             .webp = .{},
         });
+        const out_dir = try target_query.zigTriple(b.allocator);
+        const h_dir = try std.fs.path.join(b.allocator, &.{ out_dir, "include" });
         const imgz_output = b.addInstallArtifact(imgz_lib, .{
+            .h_dir = .{
+                .override = .{
+                    .custom = h_dir,
+                },
+            },
             .dest_dir = .{
                 .override = .{
-                    .custom = try target_query.zigTriple(b.allocator),
+                    .custom = out_dir,
                 },
             },
         });
