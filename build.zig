@@ -18,8 +18,6 @@ pub fn build(b: *std.Build) !void {
     const enable_tiff = b.option(bool, "tiff", "libtiff: Enable") orelse true;
     const tiff_has_liblzma = b.option(bool, "tiff_has_liblzma", "libtiff: Enable liblzma support") orelse false;
     const tiff_use_system_liblzma = b.option(bool, "tiff_use_system_liblzma", "libtiff: Use system liblzma") orelse false;
-    const tiff_has_libwebp = b.option(bool, "tiff_has_libwebp", "libtiff: Enable libwebp support") orelse false;
-    const tiff_use_system_libwebp = b.option(bool, "tiff_use_system_libwebp", "libtiff: Use system libwebp") orelse false;
     const tiff_has_libzstd = b.option(bool, "tiff_has_libzstd", "libtiff: Enable libzstd support") orelse false;
     const tiff_use_system_libzstd = b.option(bool, "tiff_use_system_libzstd", "libtiff: Use system libzstd") orelse false;
     const tiff_has_liblerc = b.option(bool, "tiff_has_liblerc", "libtiff: Enable liblerc support") orelse false;
@@ -43,8 +41,6 @@ pub fn build(b: *std.Build) !void {
         .tiff = if (enable_tiff) .{
             .has_liblzma = tiff_has_liblzma,
             .use_system_liblzma = tiff_use_system_liblzma,
-            .has_libwebp = tiff_has_libwebp,
-            .use_system_libwebp = tiff_use_system_libwebp,
             .has_libzstd = tiff_has_libzstd,
             .use_system_libzstd = tiff_use_system_libzstd,
             .has_liblerc = tiff_has_liblerc,
@@ -105,14 +101,8 @@ fn buildImgz(b: *std.Build, options: Options) !*std.Build.Step.Compile {
         }),
     });
 
-    var maybe_libjpeg: ?*std.Build.Step.Compile = null;
-    var maybe_libwebp: ?*std.Build.Step.Compile = null;
-    if (options.jpeg_turbo) |jpeg_turbo_options| {
-        const jpeg_turbo = try JpegTurbo.get(b, target, optimize, jpeg_turbo_options);
-        try imgz.installed_headers.appendSlice(jpeg_turbo.installed_headers.items);
-        imgz.linkLibrary(jpeg_turbo);
-        maybe_libjpeg = jpeg_turbo;
-    }
+    const has_libjpeg = options.jpeg_turbo != null;
+    const has_libwebp = options.webp != null;
 
     if (options.spng) |spng_options| {
         const spng = try Spng.get(b, target, optimize, spng_options);
@@ -120,22 +110,47 @@ fn buildImgz(b: *std.Build, options: Options) !*std.Build.Step.Compile {
         imgz.linkLibrary(spng);
     }
 
-    if (options.webp) |webp_options| {
+    const maybe_jpeg: ?*std.Build.Step.Compile = if (options.jpeg_turbo) |jpeg_turbo_options| blk: {
+        const jpeg_turbo = try JpegTurbo.get(b, target, optimize, jpeg_turbo_options);
+        try imgz.installed_headers.appendSlice(jpeg_turbo.installed_headers.items);
+        imgz.linkLibrary(jpeg_turbo);
+        break :blk jpeg_turbo;
+    } else null;
+
+    const maybe_webp: ?*std.Build.Step.Compile = if (options.webp) |webp_options| blk: {
         const webp = try Webp.get(b, target, optimize, webp_options, .{
-            .libjpeg = maybe_libjpeg,
+            .has_libjpeg = options.jpeg_turbo != null,
         });
         try imgz.installed_headers.appendSlice(webp.installed_headers.items);
         imgz.linkLibrary(webp);
-        maybe_libwebp = webp;
-    }
+        break :blk webp;
+    } else null;
 
-    if (options.tiff) |tiff_options| {
+    const maybe_tiff: ?*std.Build.Step.Compile = if (options.tiff) |tiff_options| blk: {
         const tiff = try Tiff.get(b, target, optimize, tiff_options, .{
-            .libjpeg = maybe_libjpeg,
-            .libwebp = maybe_libwebp,
+            .has_libjpeg = options.jpeg_turbo != null,
+            .has_libwebp = options.webp != null,
         });
         try imgz.installed_headers.appendSlice(tiff.installed_headers.items);
         imgz.linkLibrary(tiff);
+        break :blk tiff;
+    } else null;
+
+    if (has_libjpeg) {
+        const libjpeg = maybe_jpeg orelse @panic("unreachable");
+        if (maybe_webp) |webp| {
+            webp.linkLibrary(libjpeg);
+        }
+        if (maybe_tiff) |tiff| {
+            tiff.linkLibrary(libjpeg);
+        }
+    }
+
+    if (has_libwebp) {
+        const libwebp = maybe_webp orelse @panic("unreachable");
+        if (maybe_tiff) |tiff| {
+            tiff.linkLibrary(libwebp);
+        }
     }
 
     return imgz;

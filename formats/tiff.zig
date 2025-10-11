@@ -10,8 +10,6 @@ pub const Options = struct {
 
     has_liblzma: bool = false,
     use_system_liblzma: bool = false,
-    has_libwebp: bool = false,
-    use_system_libwebp: bool = false,
     has_libzstd: bool = false,
     use_system_libzstd: bool = false,
     has_liblerc: bool = false,
@@ -19,8 +17,8 @@ pub const Options = struct {
 };
 
 pub const InternalOptions = struct {
-    libjpeg: ?*std.Build.Step.Compile = null,
-    libwebp: ?*std.Build.Step.Compile = null,
+    has_libjpeg: bool = false,
+    has_libwebp: bool = false,
 };
 
 pub fn get(
@@ -39,14 +37,13 @@ pub fn get(
 
     const has_liblzma = options.has_liblzma;
     const use_system_liblzma = options.use_system_liblzma;
-    const has_libwebp = options.has_libwebp;
-    const use_system_libwebp = options.use_system_libwebp;
     const has_libzstd = options.has_libzstd;
     const use_system_libzstd = options.use_system_libzstd;
     const has_liblerc = options.has_liblerc;
     const use_system_liblerc = options.use_system_liblerc;
 
-    const has_libjpeg = internal_options.libjpeg != null;
+    const has_libjpeg = internal_options.has_libjpeg;
+    const has_libwebp = internal_options.has_libwebp;
 
     const tiff_mod = b.createModule(.{
         .target = target,
@@ -92,7 +89,7 @@ pub fn get(
             .LERC_SUPPORT = use_system_liblerc or has_liblerc,
             .LERC_STATIC = has_liblerc,
             .LZMA_SUPPORT = use_system_liblzma or has_liblzma,
-            .WEBP_SUPPORT = use_system_libwebp or has_libwebp or internal_options.libwebp != null,
+            .WEBP_SUPPORT = has_libwebp,
             .ZSTD_SUPPORT = use_system_libzstd or has_libzstd,
             .USE_WIN32_FILEIO = target.result.os.tag == .windows,
             .SIZEOF_SIZE_T = bit_width,
@@ -255,23 +252,12 @@ pub fn get(
         if (use_system_libzstd and !has_libzstd) {
             tiff_mod.linkSystemLibrary("zstd", .{});
         }
-        if (use_system_libwebp and !has_libwebp) {
-            tiff_mod.linkSystemLibrary("webp", .{});
-        }
 
         lib_tiff.installHeader(tiff_upstream.path("libtiff/tiff.h"), "tiff.h");
         lib_tiff.installHeader(tiff_upstream.path("libtiff/tiffio.h"), "tiffio.h");
         lib_tiff.installConfigHeader(tiffvers);
         lib_tiff.installConfigHeader(tif_config);
         lib_tiff.installConfigHeader(tiffconf);
-    }
-
-    if (internal_options.libjpeg) |libjpeg| {
-        lib_tiff.linkLibrary(libjpeg);
-    }
-
-    if (internal_options.libwebp) |webp| {
-        lib_tiff.linkLibrary(webp);
     }
 
     return lib_tiff;
