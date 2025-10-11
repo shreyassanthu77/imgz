@@ -137,14 +137,15 @@ jobs:
 
       - name: Create Release Archives Per Platform
         run: |
+          mkdir -p ./output
           for d in ./*; do
-            cd "$d" && zip -r "../$d.zip" . && cd ..
+            cd "$d" && zip -r "../output/$d.zip" . && cd ..
           done
-          ls -la
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           draft: false
           prerelease: false
-          files: ./*.zip
+          files: |
+            ./output/*
