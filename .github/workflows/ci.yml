@@ -9,17 +9,14 @@ on:
 
 jobs:
   test:
-    name: Run Tests (all targets)
+    name: Run Tests (all configs on ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
-            run_tests: true
           - os: windows-latest
-            run_tests: true
           - os: macos-latest
-            run_tests: true
     defaults:
       run:
         shell: bash
@@ -32,28 +29,39 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Install nasm for x86 targets (Linux)
-        if: contains(matrix.target, 'x86_64') && runner.os == 'Linux'
+      - name: Install nasm (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y nasm
 
-      - name: Install nasm for x86 targets (macOS)
-        if: contains(matrix.target, 'x86_64') && runner.os == 'macOS'
+      - name: Install nasm (macOS)
+        if: runner.os == 'macOS'
         run: |
           brew install nasm
 
-      - name: Install nasm for x86 targets (Windows)
-        if: contains(matrix.target, 'x86_64') && runner.os == 'Windows'
+      - name: Install nasm (Windows)
+        if: runner.os == 'Windows'
         run: |
           choco install -y nasm
 
-      - name: Run tests
-        if: matrix.run_tests == true
+      - name: Run tests (All enabled)
         run: |
           zig build test --summary all --verbose
 
-      - name: Skip (runner not available)
-        if: matrix.run_tests != true
+      - name: Run tests (Only spng)
         run: |
-          echo "Skipping: no hosted runner available for ${{ matrix.target }}"
+          zig build test -Dspng=true -Djpeg_turbo=false -Dtiff=false -Dwebp=false --summary all --verbose
+
+      - name: Run tests (Only jpeg-turbo)
+        run: |
+          zig build test -Dspng=false -Djpeg_turbo=true -Dtiff=false -Dwebp=false --summary all --verbose
+
+      - name: Run tests (Only tiff)
+        run: |
+          zig build test -Dspng=false -Djpeg_turbo=false -Dtiff=true -Dwebp=false --summary all --verbose
+
+      - name: Run tests (Only webp)
+        run: |
+          zig build test -Dspng=false -Djpeg_turbo=false -Dtiff=false -Dwebp=true --summary all --verbose
+
