@@ -1,30 +1,9 @@
 const std = @import("std");
-
-test "spng decode" {
-    const c = @cImport({
-        @cInclude("spng.h");
-    });
-
-    const image_data = @embedFile("test-images/orange.png");
-
-    const ctx = c.spng_ctx_new(0) orelse return error.FailedToCreateContext;
-    defer c.spng_ctx_free(ctx);
-    if (c.spng_set_png_buffer(ctx, image_data.ptr, image_data.len) != 0) {
-        return error.FailedToSetBuffer;
-    }
-
-    var size: usize = undefined;
-    if (c.spng_decoded_image_size(ctx, c.SPNG_FMT_RGBA8, &size) != 0) {
-        return error.FailedToGetSize;
-    }
-    const pixels = try std.testing.allocator.alloc(u8, size);
-    defer std.testing.allocator.free(pixels);
-    if (c.spng_decode_image(ctx, pixels.ptr, pixels.len, c.SPNG_FMT_RGBA8, c.SPNG_DECODE_TRNS) != 0) {
-        return error.FailedToDecode;
-    }
-}
+const opts = @import("opts");
 
 test "spng encode" {
+    if (!opts.spng_enabled) return error.SkipZigTest;
+
     const c = @cImport({
         @cInclude("spng.h");
     });
@@ -67,32 +46,35 @@ test "spng encode" {
     try std.testing.expect(out_len > 0);
 }
 
-test "tiff decode" {
+test "spng decode" {
+    if (!opts.spng_enabled) return error.SkipZigTest;
+
     const c = @cImport({
-        @cInclude("tiffio.h");
+        @cInclude("spng.h");
     });
 
-    const image_path = "test-images/orange.tiff";
-    const tif = c.TIFFOpen(image_path, "r") orelse return error.FailedToOpenTIFF;
-    defer _ = c.TIFFClose(tif);
+    const image_data = @embedFile("test-images/orange.png");
 
-    var width: u32 = 0;
-    var height: u32 = 0;
-    _ = c.TIFFGetField(tif, c.TIFFTAG_IMAGEWIDTH, &width);
-    _ = c.TIFFGetField(tif, c.TIFFTAG_IMAGELENGTH, &height);
-
-    const pixels = try std.testing.allocator.alloc(u32, @as(usize, width) * @as(usize, height));
-    defer std.testing.allocator.free(pixels);
-
-    if (c.TIFFReadRGBAImage(tif, width, height, pixels.ptr, 0) == 0) {
-        return error.FailedToDecode;
+    const ctx = c.spng_ctx_new(0) orelse return error.FailedToCreateContext;
+    defer c.spng_ctx_free(ctx);
+    if (c.spng_set_png_buffer(ctx, image_data.ptr, image_data.len) != 0) {
+        return error.FailedToSetBuffer;
     }
 
-    // Verify that we have some pixels
-    try std.testing.expect(pixels.len > 0);
+    var size: usize = undefined;
+    if (c.spng_decoded_image_size(ctx, c.SPNG_FMT_RGBA8, &size) != 0) {
+        return error.FailedToGetSize;
+    }
+    const pixels = try std.testing.allocator.alloc(u8, size);
+    defer std.testing.allocator.free(pixels);
+    if (c.spng_decode_image(ctx, pixels.ptr, pixels.len, c.SPNG_FMT_RGBA8, c.SPNG_DECODE_TRNS) != 0) {
+        return error.FailedToDecode;
+    }
 }
 
 test "tiff encode" {
+    if (!opts.tiff_enabled) return error.SkipZigTest;
+
     const c = @cImport({
         @cInclude("tiffio.h");
     });
@@ -130,68 +112,36 @@ test "tiff encode" {
     try std.testing.expect(stat.size > 0);
 }
 
-test "jpeg-turbo decode" {
-    const jpeg_c = @cImport({
-        @cInclude("stddef.h");
-        @cInclude("stdio.h");
-        @cInclude("jpeglib.h");
-    });
+test "tiff decode" {
+    if (!opts.tiff_enabled) return error.SkipZigTest;
 
-    const jpeg_data = @embedFile("test-images/orange.jpeg");
-
-    var dinfo: jpeg_c.jpeg_decompress_struct = undefined;
-    var djerr: jpeg_c.jpeg_error_mgr = undefined;
-    dinfo.err = jpeg_c.jpeg_std_error(&djerr);
-    jpeg_c.jpeg_create_decompress(&dinfo);
-    defer jpeg_c.jpeg_destroy_decompress(&dinfo);
-    jpeg_c.jpeg_mem_src(&dinfo, jpeg_data.ptr, @as(c_ulong, @intCast(jpeg_data.len)));
-    if (jpeg_c.jpeg_read_header(&dinfo, 1) != jpeg_c.JPEG_HEADER_OK) {
-        return error.FailedToReadHeader;
-    }
-    _ = jpeg_c.jpeg_start_decompress(&dinfo);
-    const decoded_rgb = try std.testing.allocator.alloc(u8, @as(usize, dinfo.output_width) * @as(usize, dinfo.output_height) * @as(usize, @intCast(dinfo.num_components)));
-    defer std.testing.allocator.free(decoded_rgb);
-    var decoded_row_ptr: [*]u8 = decoded_rgb.ptr;
-    const decoded_row_stride = @as(usize, dinfo.output_width) * @as(usize, @intCast(dinfo.num_components));
-    while (dinfo.output_scanline < dinfo.output_height) {
-        var decoded_row_pointers: [1][*]u8 = .{decoded_row_ptr};
-        _ = jpeg_c.jpeg_read_scanlines(&dinfo, @as([*c][*c]u8, @ptrCast(&decoded_row_pointers)), 1);
-        decoded_row_ptr += decoded_row_stride;
-    }
-    _ = jpeg_c.jpeg_finish_decompress(&dinfo);
-    try std.testing.expect(decoded_rgb.len > 0);
-}
-
-test "webp decode and encode" {
     const c = @cImport({
-        @cInclude("webp/decode.h");
-        @cInclude("webp/encode.h");
+        @cInclude("tiffio.h");
     });
 
-    const width: c_int = 16;
-    const height: c_int = 16;
+    const image_path = "test-images/orange.tiff";
+    const tif = c.TIFFOpen(image_path, "r") orelse return error.FailedToOpenTIFF;
+    defer _ = c.TIFFClose(tif);
 
-    const rgba_pixels = try generateGradientPixels(std.testing.allocator, @intCast(width), @intCast(height), true);
-    defer std.testing.allocator.free(rgba_pixels);
+    var width: u32 = 0;
+    var height: u32 = 0;
+    _ = c.TIFFGetField(tif, c.TIFFTAG_IMAGEWIDTH, &width);
+    _ = c.TIFFGetField(tif, c.TIFFTAG_IMAGELENGTH, &height);
 
-    // Encode to WebP
-    var webp_buffer: ?[*]u8 = null;
-    const webp_size = c.WebPEncodeRGBA(rgba_pixels.ptr, width, height, width * 4, 90, &webp_buffer);
-    try std.testing.expect(webp_size > 0);
-    defer c.WebPFree(webp_buffer);
+    const pixels = try std.testing.allocator.alloc(u32, @as(usize, width) * @as(usize, height));
+    defer std.testing.allocator.free(pixels);
 
-    // Decode from WebP
-    var decoded_width: c_int = 0;
-    var decoded_height: c_int = 0;
-    const decoded_pixels = c.WebPDecodeRGBA(@as([*c]const u8, @ptrCast(webp_buffer)), webp_size, &decoded_width, &decoded_height);
-    try std.testing.expect(decoded_pixels != null);
-    defer c.WebPFree(decoded_pixels);
+    if (c.TIFFReadRGBAImage(tif, width, height, pixels.ptr, 0) == 0) {
+        return error.FailedToDecode;
+    }
 
-    try std.testing.expect(decoded_width == width);
-    try std.testing.expect(decoded_height == height);
+    // Verify that we have some pixels
+    try std.testing.expect(pixels.len > 0);
 }
 
 test "jpeg-turbo encode" {
+    if (!opts.jpeg_turbo_enabled) return error.SkipZigTest;
+
     const jpeg_c = @cImport({
         @cInclude("stddef.h");
         @cInclude("stdio.h");
@@ -229,6 +179,91 @@ test "jpeg-turbo encode" {
     }
     jpeg_c.jpeg_finish_compress(&cinfo);
     try std.testing.expect(jpeg_size > 0);
+}
+
+test "jpeg-turbo decode" {
+    if (!opts.jpeg_turbo_enabled) return error.SkipZigTest;
+
+    const jpeg_c = @cImport({
+        @cInclude("stddef.h");
+        @cInclude("stdio.h");
+        @cInclude("jpeglib.h");
+    });
+
+    const jpeg_data = @embedFile("test-images/orange.jpeg");
+
+    var dinfo: jpeg_c.jpeg_decompress_struct = undefined;
+    var djerr: jpeg_c.jpeg_error_mgr = undefined;
+    dinfo.err = jpeg_c.jpeg_std_error(&djerr);
+    jpeg_c.jpeg_create_decompress(&dinfo);
+    defer jpeg_c.jpeg_destroy_decompress(&dinfo);
+    jpeg_c.jpeg_mem_src(&dinfo, jpeg_data.ptr, @as(c_ulong, @intCast(jpeg_data.len)));
+    if (jpeg_c.jpeg_read_header(&dinfo, 1) != jpeg_c.JPEG_HEADER_OK) {
+        return error.FailedToReadHeader;
+    }
+    _ = jpeg_c.jpeg_start_decompress(&dinfo);
+    const decoded_rgb = try std.testing.allocator.alloc(u8, @as(usize, dinfo.output_width) * @as(usize, dinfo.output_height) * @as(usize, @intCast(dinfo.num_components)));
+    defer std.testing.allocator.free(decoded_rgb);
+    var decoded_row_ptr: [*]u8 = decoded_rgb.ptr;
+    const decoded_row_stride = @as(usize, dinfo.output_width) * @as(usize, @intCast(dinfo.num_components));
+    while (dinfo.output_scanline < dinfo.output_height) {
+        var decoded_row_pointers: [1][*]u8 = .{decoded_row_ptr};
+        _ = jpeg_c.jpeg_read_scanlines(&dinfo, @as([*c][*c]u8, @ptrCast(&decoded_row_pointers)), 1);
+        decoded_row_ptr += decoded_row_stride;
+    }
+    _ = jpeg_c.jpeg_finish_decompress(&dinfo);
+    try std.testing.expect(decoded_rgb.len > 0);
+}
+
+test "webp encode" {
+    if (!opts.webp_enabled or !opts.webp_encoding_enabled) return error.SkipZigTest;
+
+    const c = @cImport({
+        @cInclude("webp/encode.h");
+    });
+
+    const width: c_int = 16;
+    const height: c_int = 16;
+
+    const rgba_pixels = try generateGradientPixels(std.testing.allocator, @intCast(width), @intCast(height), true);
+    defer std.testing.allocator.free(rgba_pixels);
+
+    // Encode to WebP
+    var webp_buffer: ?[*]u8 = null;
+    const webp_size = c.WebPEncodeRGBA(rgba_pixels.ptr, width, height, width * 4, 90, &webp_buffer);
+    try std.testing.expect(webp_size > 0);
+    defer c.WebPFree(webp_buffer);
+}
+
+test "webp decode" {
+    if (!opts.webp_enabled) return error.SkipZigTest;
+
+    const c = @cImport({
+        @cInclude("webp/decode.h");
+        @cInclude("webp/encode.h");
+    });
+
+    const width: c_int = 16;
+    const height: c_int = 16;
+
+    const rgba_pixels = try generateGradientPixels(std.testing.allocator, @intCast(width), @intCast(height), true);
+    defer std.testing.allocator.free(rgba_pixels);
+
+    // Encode to WebP
+    var webp_buffer: ?[*]u8 = null;
+    const webp_size = c.WebPEncodeRGBA(rgba_pixels.ptr, width, height, width * 4, 90, &webp_buffer);
+    try std.testing.expect(webp_size > 0);
+    defer c.WebPFree(webp_buffer);
+
+    // Decode from WebP
+    var decoded_width: c_int = 0;
+    var decoded_height: c_int = 0;
+    const decoded_pixels = c.WebPDecodeRGBA(@as([*c]const u8, @ptrCast(webp_buffer)), webp_size, &decoded_width, &decoded_height);
+    try std.testing.expect(decoded_pixels != null);
+    defer c.WebPFree(decoded_pixels);
+
+    try std.testing.expect(decoded_width == width);
+    try std.testing.expect(decoded_height == height);
 }
 
 fn generateGradientPixels(allocator: std.mem.Allocator, width: u32, height: u32, rgba: bool) ![]u8 {

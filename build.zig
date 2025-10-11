@@ -56,11 +56,21 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(imgz);
 
     const test_step = b.step("test", "Run tests");
+    const test_options = b.addOptions();
+    test_options.addOption(bool, "spng_enabled", enable_spng);
+    test_options.addOption(bool, "jpeg_turbo_enabled", enable_jpeg_turbo);
+    test_options.addOption(bool, "tiff_enabled", enable_tiff);
+    test_options.addOption(bool, "webp_enabled", enable_webp);
+    test_options.addOption(bool, "webp_encoding_enabled", webp_encoding);
+
     const test_exe = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("test.zig"),
             .target = target,
             .optimize = optimize,
+            .imports = &.{
+                .{ .name = "opts", .module = test_options.createModule() },
+            },
         }),
     });
     test_exe.linkLibrary(imgz);
