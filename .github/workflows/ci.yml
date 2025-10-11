@@ -30,18 +30,18 @@ jobs:
           version: 0.15.1
 
       - name: Install nasm (Linux)
-        if: runner.os == 'Linux'
+        if: contains(matrix.target, 'x86_64') && runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y nasm
 
       - name: Install nasm (macOS)
-        if: runner.os == 'macOS'
+        if: contains(matrix.target, 'x86_64') && runner.os == 'macOS'
         run: |
           brew install nasm
 
       - name: Install nasm (Windows)
-        if: runner.os == 'Windows'
+        if: contains(matrix.target, 'x86_64') && runner.os == 'Windows'
         run: |
           choco install -y nasm
 
