@@ -76,6 +76,37 @@ pub fn build(b: *std.Build) !void {
     test_exe.linkLibrary(imgz);
     const run_test_exe = b.addRunArtifact(test_exe);
     test_step.dependOn(&run_test_exe.step);
+
+    const ci_step = b.step("ci", "Run tests on CI");
+    const build_targets: []const std.Target.Query = &.{
+        .{ .cpu_arch = .aarch64, .os_tag = .macos },
+        .{ .cpu_arch = .aarch64, .os_tag = .linux },
+        .{ .cpu_arch = .aarch64, .os_tag = .windows },
+        .{ .cpu_arch = .x86_64, .os_tag = .macos },
+        .{ .cpu_arch = .x86_64, .os_tag = .linux },
+        .{ .cpu_arch = .x86_64, .os_tag = .windows },
+        .{ .cpu_arch = .riscv64, .os_tag = .linux },
+        .{ .cpu_arch = .riscv32, .os_tag = .linux },
+    };
+    for (build_targets) |target_query| {
+        const t = b.resolveTargetQuery(target_query);
+        const imgz_lib = try buildImgz(b, .{
+            .target = t,
+            .optimize = optimize,
+            .jpeg_turbo = .{},
+            .spng = .{},
+            .tiff = .{},
+            .webp = .{},
+        });
+        const imgz_output = b.addInstallArtifact(imgz_lib, .{
+            .dest_dir = .{
+                .override = .{
+                    .custom = try target_query.zigTriple(b.allocator),
+                },
+            },
+        });
+        ci_step.dependOn(&imgz_output.step);
+    }
 }
 
 pub const Options = struct {
