@@ -134,11 +134,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           merge-multiple: false
+          path: artifacts/
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: false
-          prerelease: false
-          path: ./**/*
+      - name: Create Release Archives Per Platform
+        run: |
+          for d in ./artifacts/*; do
+            cd "$d" && zip -r "../$d.zip" .
+          done
+          ls -R
+
+      # - name: Create Release
+      #   uses: softprops/action-gh-release@v2
+      #   with:
+      #     draft: false
+      #     prerelease: false
+      #     path: ./*.zip
 
