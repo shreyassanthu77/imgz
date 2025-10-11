@@ -5,6 +5,12 @@ pub const Options = struct {
     enable_mux: bool = true,
     enable_threading: bool = true,
     enable_simd: bool = true,
+    has_libjpeg: bool = false,
+    use_system_libjpeg: bool = false,
+};
+
+pub const InternalOptions = struct {
+    libjpeg: ?*std.Build.Step.Compile = null,
 };
 
 pub fn get(
@@ -12,6 +18,7 @@ pub fn get(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     options: Options,
+    internal_options: InternalOptions,
 ) !*std.Build.Step.Compile {
     const webp_mod = b.createModule(.{
         .target = target,
@@ -53,7 +60,7 @@ pub fn get(
             .HAVE_WINCODEC_H = target.result.os.tag == .windows,
             .HAVE_WINDOWS_H = target.result.os.tag == .windows,
             .WEBP_HAVE_GIF = false,
-            .WEBP_HAVE_JPEG = false,
+            .WEBP_HAVE_JPEG = internal_options.libjpeg != null or options.has_libjpeg,
             .WEBP_HAVE_PNG = false,
             .WEBP_HAVE_TIFF = false,
             .WEBP_HAVE_SDL = false,
@@ -258,9 +265,19 @@ pub fn get(
             webp_lib.installHeader(webp_dep.path("src/webp/encode.h"), "webp/encode.h");
         }
         webp_lib.installHeader(webp_dep.path("src/webp/types.h"), "webp/types.h");
+
+        if (options.has_libjpeg) {
+            if (options.use_system_libjpeg) {
+                webp_mod.linkSystemLibrary("jpeg", .{});
+            } else if (internal_options.libjpeg) |libjpeg| {
+                webp_lib.linkLibrary(libjpeg);
+            }
+        }
+
+        return webp_lib;
     }
 
-    return webp_lib;
+    return error.WebPDependencyNotFound;
 }
 
 pub fn getSharpyuv(

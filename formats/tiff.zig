@@ -20,6 +20,7 @@ pub const Options = struct {
 
 pub const InternalOptions = struct {
     libjpeg: ?*std.Build.Step.Compile = null,
+    libwebp: ?*std.Build.Step.Compile = null,
 };
 
 pub fn get(
@@ -91,7 +92,7 @@ pub fn get(
             .LERC_SUPPORT = use_system_liblerc or has_liblerc,
             .LERC_STATIC = has_liblerc,
             .LZMA_SUPPORT = use_system_liblzma or has_liblzma,
-            .WEBP_SUPPORT = use_system_libwebp or has_libwebp,
+            .WEBP_SUPPORT = use_system_libwebp or has_libwebp or internal_options.libwebp != null,
             .ZSTD_SUPPORT = use_system_libzstd or has_libzstd,
             .USE_WIN32_FILEIO = target.result.os.tag == .windows,
             .SIZEOF_SIZE_T = bit_width,
@@ -267,6 +268,10 @@ pub fn get(
 
     if (internal_options.libjpeg) |libjpeg| {
         lib_tiff.linkLibrary(libjpeg);
+    }
+
+    if (internal_options.libwebp) |webp| {
+        lib_tiff.linkLibrary(webp);
     }
 
     return lib_tiff;

@@ -66,25 +66,33 @@ const imgz_lib = try imgz_pkg.get(b, .{
         .simd = true,       // SIMD extensions
     },
     .spng = .{},            // libspng (no options currently)
-    .tiff = .{
-        // OpenGL header feature toggles
-        .has_glut_glut_h = false,
-        .has_gl_glut_h = false,
-        .has_gl_glu_h = false,
-        .has_gl_gl_h = false,
-        .has_opengl_glu_h = false,
-        .has_opengl_gl_h = false,
+     .tiff = .{
+         // OpenGL header feature toggles
+         .has_glut_glut_h = false,
+         .has_gl_glut_h = false,
+         .has_gl_glu_h = false,
+         .has_gl_gl_h = false,
+         .has_opengl_glu_h = false,
+         .has_opengl_gl_h = false,
 
-        // Optional codec/backends
-        .has_liblzma = false,
-        .use_system_liblzma = false,
-        .has_libwebp = false,
-        .use_system_libwebp = false,
-        .has_libzstd = false,
-        .use_system_libzstd = false,
-        .has_liblerc = false,
-        .use_system_liblerc = false,
-    },
+         // Optional codec/backends
+         .has_liblzma = false,
+         .use_system_liblzma = false,
+         .has_libwebp = false,
+         .use_system_libwebp = false,
+         .has_libzstd = false,
+         .use_system_libzstd = false,
+         .has_liblerc = false,
+         .use_system_liblerc = false,
+     },
+     .webp = .{
+         .enable_encoding = true,
+         .enable_mux = true,
+         .enable_threading = true,
+         .enable_simd = true,
+         .has_libjpeg = false,
+         .use_system_libjpeg = false,
+     },
 });
 ```
 
@@ -113,7 +121,8 @@ Notes:
   - `-Dtiff_has_liblzma` (false), `-Dtiff_use_system_liblzma` (false)
   - `-Dtiff_has_libwebp` (false), `-Dtiff_use_system_libwebp` (false)
   - `-Dtiff_has_libzstd` (false), `-Dtiff_use_system_libzstd` (false)
-  - `-Dtiff_has_liblerc` (false), `-Dtiff_use_system_liblerc` (false)
+   - `-Dtiff_has_liblerc` (false), `-Dtiff_use_system_liblerc` (false)
+   - `-Dwebp_has_libjpeg` (false), `-Dwebp_use_system_libjpeg` (false)
 
 Examples:
 
@@ -148,6 +157,7 @@ These are pinned in `build.zig.zon`:
 - libspng: v0.7.4 — https://github.com/randy408/libspng
 - libjpeg-turbo: 3.1.2 (JPEG_LIB_VERSION 80) — https://github.com/libjpeg-turbo/libjpeg-turbo
 - libtiff: commit 57dd777… — https://gitlab.com/libtiff/libtiff
+- libwebp: commit 23359a1… — https://github.com/webmproject/libwebp
 - zlib (vendored for consumers): 1.3.1 — https://github.com/allyourcodebase/zlib
 
 ## Supported Libraries

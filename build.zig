@@ -30,6 +30,8 @@ pub fn build(b: *std.Build) !void {
     const webp_mux = b.option(bool, "webp_mux", "libwebp: Enable mux support") orelse true;
     const webp_threading = b.option(bool, "webp_threading", "libwebp: Enable threading") orelse true;
     const webp_simd = b.option(bool, "webp_simd", "libwebp: Enable SIMD") orelse true;
+    const webp_has_libjpeg = b.option(bool, "webp_has_libjpeg", "libwebp: Enable libjpeg support") orelse false;
+    const webp_use_system_libjpeg = b.option(bool, "webp_use_system_libjpeg", "libwebp: Use system libjpeg") orelse false;
 
     const imgz = try buildImgz(b, .{
         .target = target,
@@ -55,6 +57,8 @@ pub fn build(b: *std.Build) !void {
             .enable_mux = webp_mux,
             .enable_threading = webp_threading,
             .enable_simd = webp_simd,
+            .has_libjpeg = webp_has_libjpeg,
+            .use_system_libjpeg = webp_use_system_libjpeg,
         } else null,
     });
     b.installArtifact(imgz);
@@ -106,6 +110,7 @@ fn buildImgz(b: *std.Build, options: Options) !*std.Build.Step.Compile {
     });
 
     var maybe_libjpeg: ?*std.Build.Step.Compile = null;
+    var maybe_libwebp: ?*std.Build.Step.Compile = null;
     if (options.jpeg_turbo) |jpeg_turbo_options| {
         const jpeg_turbo = try JpegTurbo.get(b, target, optimize, jpeg_turbo_options);
         try imgz.installed_headers.appendSlice(jpeg_turbo.installed_headers.items);
@@ -119,18 +124,22 @@ fn buildImgz(b: *std.Build, options: Options) !*std.Build.Step.Compile {
         imgz.linkLibrary(spng);
     }
 
+    if (options.webp) |webp_options| {
+        const webp = try Webp.get(b, target, optimize, webp_options, .{
+            .libjpeg = maybe_libjpeg,
+        });
+        try imgz.installed_headers.appendSlice(webp.installed_headers.items);
+        imgz.linkLibrary(webp);
+        maybe_libwebp = webp;
+    }
+
     if (options.tiff) |tiff_options| {
         const tiff = try Tiff.get(b, target, optimize, tiff_options, .{
             .libjpeg = maybe_libjpeg,
+            .libwebp = maybe_libwebp,
         });
         try imgz.installed_headers.appendSlice(tiff.installed_headers.items);
         imgz.linkLibrary(tiff);
-    }
-
-    if (options.webp) |webp_options| {
-        const webp = try Webp.get(b, target, optimize, webp_options);
-        try imgz.installed_headers.appendSlice(webp.installed_headers.items);
-        imgz.linkLibrary(webp);
     }
 
     return imgz;
