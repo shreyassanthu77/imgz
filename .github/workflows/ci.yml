@@ -134,7 +134,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           merge-multiple: false
-          path: artifacts/
+          path: ./artifacts/
 
       - name: Create Release Archives Per Platform
         run: |
