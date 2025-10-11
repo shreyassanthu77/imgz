@@ -26,10 +26,7 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
-        .name = "app",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        ...
     });
 
     // returns a static library with selected dependencies linked
@@ -42,7 +39,6 @@ pub fn build(b: *std.Build) !void {
     });
 
     exe.linkLibrary(imgz_lib);
-    b.installArtifact(exe);
 }
 ```
 
@@ -67,6 +63,14 @@ const imgz_lib = try imgz_pkg.get(b, .{
     },
     .spng = .{},            // libspng (no options currently)
      .tiff = .{
+         // Optional codec/backends
+         .has_liblzma = false,
+         .use_system_liblzma = false,
+         .has_libzstd = false,
+         .use_system_libzstd = false,
+         .has_liblerc = false,
+         .use_system_liblerc = false,
+
          // OpenGL header feature toggles
          .has_glut_glut_h = false,
          .has_gl_glut_h = false,
@@ -74,24 +78,12 @@ const imgz_lib = try imgz_pkg.get(b, .{
          .has_gl_gl_h = false,
          .has_opengl_glu_h = false,
          .has_opengl_gl_h = false,
-
-         // Optional codec/backends
-         .has_liblzma = false,
-         .use_system_liblzma = false,
-         .has_libwebp = false,
-         .use_system_libwebp = false,
-         .has_libzstd = false,
-         .use_system_libzstd = false,
-         .has_liblerc = false,
-         .use_system_liblerc = false,
      },
      .webp = .{
          .enable_encoding = true,
          .enable_mux = true,
          .enable_threading = true,
          .enable_simd = true,
-         .has_libjpeg = false,
-         .use_system_libjpeg = false,
      },
 });
 ```
@@ -119,10 +111,8 @@ Notes:
   - `-Djpeg_turbo_simd` (true)
   - `-Dtiff` (true): enable libtiff
   - `-Dtiff_has_liblzma` (false), `-Dtiff_use_system_liblzma` (false)
-  - `-Dtiff_has_libwebp` (false), `-Dtiff_use_system_libwebp` (false)
   - `-Dtiff_has_libzstd` (false), `-Dtiff_use_system_libzstd` (false)
    - `-Dtiff_has_liblerc` (false), `-Dtiff_use_system_liblerc` (false)
-   - `-Dwebp_has_libjpeg` (false), `-Dwebp_use_system_libjpeg` (false)
 
 Examples:
 
@@ -165,6 +155,7 @@ These are pinned in `build.zig.zon`:
 - [libjpeg-turbo](https://libjpeg-turbo.org/)
 - [libspng](https://libspng.org/)
 - [libtiff](https://libtiff.gitlab.io/libtiff/)
+- [libwebp](https://github.com/webmproject/libwebp)
 
 (PRs are welcome for more libraries.)
 
