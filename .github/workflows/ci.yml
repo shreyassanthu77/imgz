@@ -139,6 +139,7 @@ jobs:
         run: |
           mkdir -p ./output
           for d in ./*; do
+            [[ "$d" == "./output" ]] && continue
             cd "$d" && zip -r "../output/$d.zip" . && cd ..
           done
 
