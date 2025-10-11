@@ -2,6 +2,7 @@ const std = @import("std");
 const Spng = @import("formats/spng.zig");
 const JpegTurbo = @import("formats/jpeg-turbo.zig");
 const Tiff = @import("formats/tiff.zig");
+const Webp = @import("formats/webp.zig");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -24,6 +25,12 @@ pub fn build(b: *std.Build) !void {
     const tiff_has_liblerc = b.option(bool, "tiff_has_liblerc", "libtiff: Enable liblerc support") orelse false;
     const tiff_use_system_liblerc = b.option(bool, "tiff_use_system_liblerc", "libtiff: Use system liblerc") orelse false;
 
+    const enable_webp = b.option(bool, "webp", "libwebp: Enable") orelse true;
+    const webp_encoding = b.option(bool, "webp_encoding", "libwebp: Enable encoding") orelse true;
+    const webp_mux = b.option(bool, "webp_mux", "libwebp: Enable mux support") orelse true;
+    const webp_threading = b.option(bool, "webp_threading", "libwebp: Enable threading") orelse true;
+    const webp_simd = b.option(bool, "webp_simd", "libwebp: Enable SIMD") orelse true;
+
     const imgz = try buildImgz(b, .{
         .target = target,
         .optimize = optimize,
@@ -42,6 +49,12 @@ pub fn build(b: *std.Build) !void {
             .use_system_libzstd = tiff_use_system_libzstd,
             .has_liblerc = tiff_has_liblerc,
             .use_system_liblerc = tiff_use_system_liblerc,
+        } else null,
+        .webp = if (enable_webp) .{
+            .enable_encoding = webp_encoding,
+            .enable_mux = webp_mux,
+            .enable_threading = webp_threading,
+            .enable_simd = webp_simd,
         } else null,
     });
     b.installArtifact(imgz);
@@ -65,6 +78,7 @@ pub const Options = struct {
     jpeg_turbo: ?JpegTurbo.Options = null,
     spng: ?Spng.Options = null,
     tiff: ?Tiff.Options = null,
+    webp: ?Webp.Options = null,
 };
 
 pub fn get(b: *std.Build, options: Options) !*std.Build.Step.Compile {
@@ -111,6 +125,12 @@ fn buildImgz(b: *std.Build, options: Options) !*std.Build.Step.Compile {
         });
         try imgz.installed_headers.appendSlice(tiff.installed_headers.items);
         imgz.linkLibrary(tiff);
+    }
+
+    if (options.webp) |webp_options| {
+        const webp = try Webp.get(b, target, optimize, webp_options);
+        try imgz.installed_headers.appendSlice(webp.installed_headers.items);
+        imgz.linkLibrary(webp);
     }
 
     return imgz;

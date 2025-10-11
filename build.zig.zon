@@ -29,5 +29,9 @@
             .hash = "zlib-1.3.1-ZZQ7lbYMAAB1hTSOKSXAKAgHsfDcyWNH_37ojw5WSpgR",
             .lazy = true,
         },
+        .libwebp_upstream = .{
+            .url = "git+https://github.com/webmproject/libwebp.git#23359a1039d054b6e46ca97fa8789a755457fbd5",
+            .hash = "N-V-__8AAAgPfAB2dLHqe8Vw--VN8ULPqqYFewfk4tobT8ov",
+        },
     },
 }
