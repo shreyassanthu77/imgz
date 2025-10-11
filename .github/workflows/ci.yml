@@ -147,5 +147,4 @@ jobs:
         with:
           draft: false
           prerelease: false
-          path: ./*.zip
-
+          files: ./*.zip
