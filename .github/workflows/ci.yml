@@ -21,9 +21,7 @@ jobs:
           version: 0.15.1
 
       - name: Install nasm (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y nasm
+        uses: ilammy/setup-nasm@v1
 
       - name: Build Libraries
         run: |
@@ -99,20 +97,8 @@ jobs:
           version: 0.15.1
 
       - name: Install nasm (Linux)
-        if: contains(matrix.target, 'x86_64') && runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y nasm
-
-      - name: Install nasm (macOS)
-        if: contains(matrix.target, 'x86_64') && runner.os == 'macOS'
-        run: |
-          brew install nasm
-
-      - name: Install nasm (Windows)
-        if: contains(matrix.target, 'x86_64') && runner.os == 'Windows'
-        run: |
-          choco install -y nasm
+        if: contains(matrix.target, 'x86_64')
+        uses: ilammy/setup-nasm@v1
 
       - name: Run tests (All enabled)
         run: |
@@ -145,13 +131,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
+          merge-multiple: false
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
+          files: artifacts/*
 
