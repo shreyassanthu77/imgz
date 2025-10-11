@@ -139,13 +139,12 @@ pub fn get(b: *std.Build, options: Options) !*std.Build.Step.Compile {
 fn buildImgz(b: *std.Build, options: Options) !*std.Build.Step.Compile {
     const target = options.target;
     const optimize = options.optimize;
-
     const imgz = b.addLibrary(.{
         .name = "imgz",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("empty.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
         }),
     });
 
@@ -153,52 +152,24 @@ fn buildImgz(b: *std.Build, options: Options) !*std.Build.Step.Compile {
     const has_libwebp = options.webp != null;
 
     if (options.spng) |spng_options| {
-        const spng = try Spng.get(b, target, optimize, spng_options);
-        try imgz.installed_headers.appendSlice(spng.installed_headers.items);
-        imgz.linkLibrary(spng);
+        try Spng.get(b, target, optimize, imgz, spng_options);
     }
 
-    const maybe_jpeg: ?*std.Build.Step.Compile = if (options.jpeg_turbo) |jpeg_turbo_options| blk: {
-        const jpeg_turbo = try JpegTurbo.get(b, target, optimize, jpeg_turbo_options);
-        try imgz.installed_headers.appendSlice(jpeg_turbo.installed_headers.items);
-        imgz.linkLibrary(jpeg_turbo);
-        break :blk jpeg_turbo;
-    } else null;
-
-    const maybe_webp: ?*std.Build.Step.Compile = if (options.webp) |webp_options| blk: {
-        const webp = try Webp.get(b, target, optimize, webp_options, .{
-            .has_libjpeg = options.jpeg_turbo != null,
-        });
-        try imgz.installed_headers.appendSlice(webp.installed_headers.items);
-        imgz.linkLibrary(webp);
-        break :blk webp;
-    } else null;
-
-    const maybe_tiff: ?*std.Build.Step.Compile = if (options.tiff) |tiff_options| blk: {
-        const tiff = try Tiff.get(b, target, optimize, tiff_options, .{
-            .has_libjpeg = options.jpeg_turbo != null,
-            .has_libwebp = options.webp != null,
-        });
-        try imgz.installed_headers.appendSlice(tiff.installed_headers.items);
-        imgz.linkLibrary(tiff);
-        break :blk tiff;
-    } else null;
-
-    if (has_libjpeg) {
-        const libjpeg = maybe_jpeg orelse @panic("unreachable");
-        if (maybe_webp) |webp| {
-            webp.linkLibrary(libjpeg);
-        }
-        if (maybe_tiff) |tiff| {
-            tiff.linkLibrary(libjpeg);
-        }
+    if (options.jpeg_turbo) |jpeg_turbo_options| {
+        try JpegTurbo.get(b, target, optimize, imgz, jpeg_turbo_options);
     }
 
-    if (has_libwebp) {
-        const libwebp = maybe_webp orelse @panic("unreachable");
-        if (maybe_tiff) |tiff| {
-            tiff.linkLibrary(libwebp);
-        }
+    if (options.webp) |webp_options| {
+        try Webp.get(b, target, optimize, imgz, webp_options, .{
+            .has_libjpeg = has_libjpeg,
+        });
+    }
+
+    if (options.tiff) |tiff_options| {
+        try Tiff.get(b, target, optimize, imgz, tiff_options, .{
+            .has_libjpeg = has_libjpeg,
+            .has_libwebp = has_libwebp and options.webp.?.enable_encoding,
+        });
     }
 
     return imgz;

@@ -15,18 +15,11 @@ pub fn get(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
+    lib: *std.Build.Step.Compile,
     options: Options,
     internal_options: InternalOptions,
-) !*std.Build.Step.Compile {
-    const webp_mod = b.createModule(.{
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    });
-    const webp_lib = b.addLibrary(.{
-        .name = "webp",
-        .root_module = webp_mod,
-    });
+) !void {
+    const mod = lib.root_module;
 
     const sharpyuv_lib = try getSharpyuv(b, target, optimize);
 
@@ -69,11 +62,12 @@ pub fn get(
             .WEBP_HAVE_AVX2 = target.result.cpu.arch.isX86(),
             .WEBP_NEAR_LOSSLESS = true,
         });
-        webp_mod.addConfigHeader(config);
-        webp_mod.addIncludePath(webp_dep.path("."));
+        mod.addConfigHeader(config);
+        mod.addIncludePath(webp_dep.path("."));
+        mod.addIncludePath(webp_dep.path("src"));
 
         // Add common sources
-        webp_mod.addCSourceFiles(.{
+        mod.addCSourceFiles(.{
             .files = &.{
                 // dec sources
                 "src/dec/alpha_dec.c",
@@ -112,7 +106,7 @@ pub fn get(
         });
 
         if (options.enable_threading) {
-            webp_mod.addCSourceFiles(.{
+            mod.addCSourceFiles(.{
                 .files = &.{"src/utils/thread_utils.c"},
                 .flags = &.{"-std=c99"},
                 .root = webp_dep.path("."),
@@ -120,7 +114,7 @@ pub fn get(
         }
 
         if (options.enable_encoding) {
-            webp_mod.addCSourceFiles(.{
+            mod.addCSourceFiles(.{
                 .files = &.{
                     // dsp enc sources
                     "src/dsp/cost.c",
@@ -166,7 +160,7 @@ pub fn get(
         switch (arch) {
             .x86_64, .x86 => {
                 // SSE2 sources
-                webp_mod.addCSourceFiles(.{
+                mod.addCSourceFiles(.{
                     .files = &.{
                         "src/dsp/alpha_processing_sse2.c",
                         "src/dsp/dec_sse2.c",
@@ -185,7 +179,7 @@ pub fn get(
                 });
 
                 // SSE4.1 sources (available on most x86_64 systems)
-                webp_mod.addCSourceFiles(.{
+                mod.addCSourceFiles(.{
                     .files = &.{
                         "src/dsp/alpha_processing_sse41.c",
                         "src/dsp/dec_sse41.c",
@@ -200,7 +194,7 @@ pub fn get(
                 });
 
                 // AVX2 sources (available on newer x86_64 systems)
-                webp_mod.addCSourceFiles(.{
+                mod.addCSourceFiles(.{
                     .files = &.{
                         "src/dsp/lossless_enc_avx2.c",
                         "src/dsp/lossless_avx2.c",
@@ -211,7 +205,7 @@ pub fn get(
             },
             .aarch64, .arm => {
                 // ARM NEON sources
-                webp_mod.addCSourceFiles(.{
+                mod.addCSourceFiles(.{
                     .files = &.{
                         "src/dsp/alpha_processing_neon.c",
                         "src/dsp/cost_neon.c",
@@ -230,7 +224,7 @@ pub fn get(
             },
             .mips, .mips64 => {
                 // MIPS sources
-                webp_mod.addCSourceFiles(.{
+                mod.addCSourceFiles(.{
                     .files = &.{
                         "src/dsp/alpha_processing_mips_dsp_r2.c",
                         "src/dsp/cost_mips32.c",
@@ -256,18 +250,14 @@ pub fn get(
             else => {},
         }
 
-        webp_mod.linkLibrary(sharpyuv_lib);
+        mod.linkLibrary(sharpyuv_lib);
 
-        webp_lib.installHeader(webp_dep.path("src/webp/decode.h"), "webp/decode.h");
+        lib.installHeader(webp_dep.path("src/webp/decode.h"), "webp/decode.h");
         if (options.enable_encoding) {
-            webp_lib.installHeader(webp_dep.path("src/webp/encode.h"), "webp/encode.h");
+            lib.installHeader(webp_dep.path("src/webp/encode.h"), "webp/encode.h");
         }
-        webp_lib.installHeader(webp_dep.path("src/webp/types.h"), "webp/types.h");
-
-        return webp_lib;
+        lib.installHeader(webp_dep.path("src/webp/types.h"), "webp/types.h");
     }
-
-    return error.WebPDependencyNotFound;
 }
 
 pub fn getSharpyuv(

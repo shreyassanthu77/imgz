@@ -16,8 +16,11 @@ pub fn get(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
+    lib: *std.Build.Step.Compile,
     options: Options,
-) !*std.Build.Step.Compile {
+) !void {
+    _ = optimize;
+
     const enable_arith_enc = options.arith_enc;
     const enable_arith_dec = options.arith_dec;
     const with_simd = options.simd and !target.result.cpu.arch.isRISCV();
@@ -25,18 +28,7 @@ pub fn get(
     const libjpeg_turbo_version_number = computeVersionNumber(conf.version);
     const build_date = try computeBuildDate(b.allocator);
 
-    const libjpeg_mod = b.createModule(.{
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-        .pic = true,
-    });
-
-    const libjpeg = b.addLibrary(.{
-        .name = "jpeg",
-        .root_module = libjpeg_mod,
-        .linkage = .static,
-    });
+    const mod = lib.root_module;
 
     if (b.lazyDependency("libjpeg_turbo_upstream", .{})) |j| {
         const jconfig = b.addConfigHeader(.{
@@ -73,13 +65,13 @@ pub fn get(
             .style = .{ .cmake = j.path("src/jversion.h.in") },
         }, .{ .COPYRIGHT_YEAR = "1991-2025" });
 
-        libjpeg_mod.addConfigHeader(jconfig);
-        libjpeg_mod.addConfigHeader(jconfigint);
-        libjpeg_mod.addConfigHeader(jversion);
-        libjpeg_mod.addIncludePath(j.path("src"));
-        libjpeg_mod.addIncludePath(j.path("simd"));
+        mod.addConfigHeader(jconfig);
+        mod.addConfigHeader(jconfigint);
+        mod.addConfigHeader(jversion);
+        mod.addIncludePath(j.path("src"));
+        mod.addIncludePath(j.path("simd"));
 
-        libjpeg_mod.addCSourceFiles(.{
+        mod.addCSourceFiles(.{
             .files = &.{
                 "src/jcapimin.c",
                 "src/jcapistd.c",
@@ -213,7 +205,7 @@ pub fn get(
         });
 
         if (enable_arith_enc or enable_arith_dec) {
-            libjpeg_mod.addCSourceFiles(.{
+            mod.addCSourceFiles(.{
                 .files = &.{"src/jaricom.c"},
                 .flags = &.{"-std=c89"},
                 .root = j.path("."),
@@ -221,7 +213,7 @@ pub fn get(
         }
 
         if (enable_arith_enc) {
-            libjpeg_mod.addCSourceFiles(.{
+            mod.addCSourceFiles(.{
                 .files = &.{"src/jcarith.c"},
                 .flags = &.{"-std=c89"},
                 .root = j.path("."),
@@ -229,7 +221,7 @@ pub fn get(
         }
 
         if (enable_arith_dec) {
-            libjpeg_mod.addCSourceFiles(.{
+            mod.addCSourceFiles(.{
                 .files = &.{"src/jdarith.c"},
                 .flags = &.{"-std=c89"},
                 .root = j.path("."),
@@ -271,10 +263,10 @@ pub fn get(
 
                     for (asm_files) |asm_file| {
                         const obj_file = nasmCompile(b, j, target, "simd/x86_64", j.path(asm_file));
-                        libjpeg_mod.addObjectFile(obj_file);
+                        mod.addObjectFile(obj_file);
                     }
 
-                    libjpeg_mod.addCSourceFiles(.{
+                    mod.addCSourceFiles(.{
                         .files = &.{"simd/x86_64/jsimd.c"},
                         .flags = &.{"-std=c89"},
                         .root = j.path("."),
@@ -330,10 +322,10 @@ pub fn get(
 
                     for (asm_files) |asm_file| {
                         const obj_file = nasmCompile(b, j, target, "simd/i386", j.path(asm_file));
-                        libjpeg_mod.addObjectFile(obj_file);
+                        mod.addObjectFile(obj_file);
                     }
 
-                    libjpeg_mod.addCSourceFiles(.{
+                    mod.addCSourceFiles(.{
                         .files = &.{"simd/i386/jsimd.c"},
                         .flags = &.{"-std=c89"},
                         .root = j.path("."),
@@ -347,11 +339,11 @@ pub fn get(
                         .HAVE_VLD1_U16_X2 = true,
                         .HAVE_VLD1Q_U8_X4 = true,
                     });
-                    libjpeg_mod.addConfigHeader(neon_compat);
-                    libjpeg_mod.addIncludePath(j.path("simd/arm"));
-                    libjpeg_mod.addCMacro("NEON_INTRINSICS", "1");
+                    mod.addConfigHeader(neon_compat);
+                    mod.addIncludePath(j.path("simd/arm"));
+                    mod.addCMacro("NEON_INTRINSICS", "1");
                     const prefix = if (arch == .aarch64) "aarch64" else "aarch32";
-                    libjpeg_mod.addCSourceFiles(.{
+                    mod.addCSourceFiles(.{
                         .files = &.{
                             "jcgray-neon.c",
                             "jcphuff-neon.c",
@@ -373,18 +365,18 @@ pub fn get(
                     });
                 },
                 .mips => {
-                    libjpeg_mod.addCSourceFiles(.{
+                    mod.addCSourceFiles(.{
                         .files = &.{"simd/mips/jsimd.c"},
                         .flags = &.{"-std=c89"},
                         .root = j.path("."),
                     });
-                    libjpeg_mod.addCSourceFiles(.{
+                    mod.addCSourceFiles(.{
                         .files = &.{"simd/mips/jsimd_dspr2.S"},
                         .root = j.path("."),
                     });
                 },
                 .mips64 => {
-                    libjpeg_mod.addCSourceFiles(.{
+                    mod.addCSourceFiles(.{
                         .files = &.{
                             "simd/mips64/jccolext-mmi.c",
                             "simd/mips64/jccolor-mmi.c",
@@ -408,7 +400,7 @@ pub fn get(
                     });
                 },
                 .powerpc => {
-                    libjpeg_mod.addCSourceFiles(.{
+                    mod.addCSourceFiles(.{
                         .files = &.{
                             "simd/powerpc/jccolext-altivec.c",
                             "simd/powerpc/jccolor-altivec.c",
@@ -440,13 +432,11 @@ pub fn get(
             }
         }
 
-        libjpeg.installConfigHeader(jconfig);
-        libjpeg.installHeader(j.path("src/jerror.h"), "jerror.h");
-        libjpeg.installHeader(j.path("src/jmorecfg.h"), "jmorecfg.h");
-        libjpeg.installHeader(j.path("src/jpeglib.h"), "jpeglib.h");
+        lib.installConfigHeader(jconfig);
+        lib.installHeader(j.path("src/jerror.h"), "jerror.h");
+        lib.installHeader(j.path("src/jmorecfg.h"), "jmorecfg.h");
+        lib.installHeader(j.path("src/jpeglib.h"), "jpeglib.h");
     }
-
-    return libjpeg;
 }
 
 fn nasmCompile(

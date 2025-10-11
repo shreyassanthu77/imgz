@@ -25,9 +25,10 @@ pub fn get(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
+    lib: *std.Build.Step.Compile,
     options: Options,
     internal_options: InternalOptions,
-) !*std.Build.Step.Compile {
+) !void {
     const has_glut_glut_h = options.has_glut_glut_h;
     const has_gl_glut_h = options.has_gl_glut_h;
     const has_gl_glu_h = options.has_gl_glu_h;
@@ -45,15 +46,7 @@ pub fn get(
     const has_libjpeg = internal_options.has_libjpeg;
     const has_libwebp = internal_options.has_libwebp;
 
-    const tiff_mod = b.createModule(.{
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    });
-    const lib_tiff = b.addLibrary(.{
-        .name = "tiff",
-        .root_module = tiff_mod,
-    });
+    const mod = lib.root_module;
 
     if (b.lazyDependency("libtiff_upstream", .{})) |tiff_upstream| {
         const bit_width = target.result.ptrBitWidth() / 8;
@@ -174,11 +167,12 @@ pub fn get(
             break :blk tiffvers;
         };
 
-        tiff_mod.addConfigHeader(tif_config);
-        tiff_mod.addConfigHeader(tiffconf);
-        tiff_mod.addConfigHeader(tiffvers);
+        mod.addConfigHeader(tif_config);
+        mod.addConfigHeader(tiffconf);
+        mod.addConfigHeader(tiffvers);
+        mod.addIncludePath(tiff_upstream.path("libtiff"));
 
-        tiff_mod.addCSourceFiles(.{
+        mod.addCSourceFiles(.{
             .root = tiff_upstream.path("."),
             .files = &.{
                 "libtiff/tif_aux.c",
@@ -240,25 +234,23 @@ pub fn get(
             .target = target,
             .optimize = optimize,
         })) |zlib_dep| {
-            tiff_mod.linkLibrary(zlib_dep.artifact("z"));
+            mod.linkLibrary(zlib_dep.artifact("z"));
         }
 
         if (use_system_liblzma and !has_liblzma) {
-            tiff_mod.linkSystemLibrary("lzma", .{});
+            mod.linkSystemLibrary("lzma", .{});
         }
         if (use_system_liblerc and !has_liblerc) {
-            tiff_mod.linkSystemLibrary("Lerc", .{});
+            mod.linkSystemLibrary("Lerc", .{});
         }
         if (use_system_libzstd and !has_libzstd) {
-            tiff_mod.linkSystemLibrary("zstd", .{});
+            mod.linkSystemLibrary("zstd", .{});
         }
 
-        lib_tiff.installHeader(tiff_upstream.path("libtiff/tiff.h"), "tiff.h");
-        lib_tiff.installHeader(tiff_upstream.path("libtiff/tiffio.h"), "tiffio.h");
-        lib_tiff.installConfigHeader(tiffvers);
-        lib_tiff.installConfigHeader(tif_config);
-        lib_tiff.installConfigHeader(tiffconf);
+        lib.installHeader(tiff_upstream.path("libtiff/tiff.h"), "tiff.h");
+        lib.installHeader(tiff_upstream.path("libtiff/tiffio.h"), "tiffio.h");
+        lib.installConfigHeader(tiffvers);
+        lib.installConfigHeader(tif_config);
+        lib.installConfigHeader(tiffconf);
     }
-
-    return lib_tiff;
 }

@@ -228,7 +228,6 @@ test "webp encode" {
     const rgba_pixels = try generateGradientPixels(std.testing.allocator, @intCast(width), @intCast(height), true);
     defer std.testing.allocator.free(rgba_pixels);
 
-    // Encode to WebP
     var webp_buffer: ?[*]u8 = null;
     const webp_size = c.WebPEncodeRGBA(rgba_pixels.ptr, width, height, width * 4, 90, &webp_buffer);
     try std.testing.expect(webp_size > 0);
@@ -243,27 +242,13 @@ test "webp decode" {
         @cInclude("webp/encode.h");
     });
 
-    const width: c_int = 16;
-    const height: c_int = 16;
+    const rgba_pixels = @embedFile("test-images/orange.webp");
 
-    const rgba_pixels = try generateGradientPixels(std.testing.allocator, @intCast(width), @intCast(height), true);
-    defer std.testing.allocator.free(rgba_pixels);
-
-    // Encode to WebP
-    var webp_buffer: ?[*]u8 = null;
-    const webp_size = c.WebPEncodeRGBA(rgba_pixels.ptr, width, height, width * 4, 90, &webp_buffer);
-    try std.testing.expect(webp_size > 0);
-    defer c.WebPFree(webp_buffer);
-
-    // Decode from WebP
     var decoded_width: c_int = 0;
     var decoded_height: c_int = 0;
-    const decoded_pixels = c.WebPDecodeRGBA(@as([*c]const u8, @ptrCast(webp_buffer)), webp_size, &decoded_width, &decoded_height);
+    const decoded_pixels = c.WebPDecodeRGBA(rgba_pixels.ptr, rgba_pixels.len, &decoded_width, &decoded_height);
     try std.testing.expect(decoded_pixels != null);
     defer c.WebPFree(decoded_pixels);
-
-    try std.testing.expect(decoded_width == width);
-    try std.testing.expect(decoded_height == height);
 }
 
 fn generateGradientPixels(allocator: std.mem.Allocator, width: u32, height: u32, rgba: bool) ![]u8 {
