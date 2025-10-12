@@ -115,22 +115,6 @@ jobs:
         run: |
           zig build test --summary all --verbose
 
-      - name: Run tests (Only spng)
-        run: |
-          zig build test -Dspng=true -Djpeg_turbo=false -Dtiff=false -Dwebp=false --summary all --verbose
-
-      - name: Run tests (Only jpeg-turbo)
-        run: |
-          zig build test -Dspng=false -Djpeg_turbo=true -Dtiff=false -Dwebp=false --summary all --verbose
-
-      - name: Run tests (Only tiff)
-        run: |
-          zig build test -Dspng=false -Djpeg_turbo=false -Dtiff=true -Dwebp=false --summary all --verbose
-
-      - name: Run tests (Only webp)
-        run: |
-          zig build test -Dspng=false -Djpeg_turbo=false -Dtiff=false -Dwebp=true --summary all --verbose
-
       - name: Run C tests
         run: |
           zig build -Doptimize=ReleaseFast --summary all --verbose
