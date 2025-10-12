@@ -149,17 +149,26 @@ fn addToModule1(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
         mod.linkLibrary(spng);
     }
 
+    var maybe_jpeg: ?*std.Build.Step.Compile = null;
     if (options.jpeg_turbo) |jpeg_turbo_options| {
         const jpeg = try JpegTurbo.get(b, target, optimize, jpeg_turbo_options);
+        maybe_jpeg = jpeg;
         mod.linkLibrary(jpeg);
     }
 
+    var maybe_webp: ?*std.Build.Step.Compile = null;
     if (options.webp) |webp_options| {
         const webp = try Webp.get(b, target, optimize, webp_options, .{
             .libjpeg_turbo = if (has_libjpeg) .custom else .disabled,
             .libsharpyuv = options.libsharpyuv,
             .libz = options.libz,
         });
+        if (has_libjpeg) {
+            const jpeg = maybe_jpeg orelse unreachable;
+            webp.linkLibrary(jpeg); // so that jpeg headers are available to webp
+        }
+
+        maybe_webp = webp;
         mod.linkLibrary(webp);
     }
 
@@ -172,6 +181,14 @@ fn addToModule1(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
             .liblzma = options.liblzma,
             .libzstd = options.libzstd,
         });
+        if (has_libwebp) {
+            const webp = maybe_webp orelse unreachable;
+            tiff.linkLibrary(webp); // so that webp headers are available to tiff
+        }
+        if (has_libjpeg) {
+            const jpeg = maybe_jpeg orelse unreachable;
+            tiff.linkLibrary(jpeg); // so that jpeg headers are available to tiff
+        }
         mod.linkLibrary(tiff);
     }
 }
