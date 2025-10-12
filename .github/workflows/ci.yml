@@ -117,7 +117,7 @@ jobs:
 
       - name: Run C tests
         run: |
-          zig build -Doptimize=ReleaseFast --summary all --verbose
+          zig build --summary all --verbose
           make test
 
   publish:
