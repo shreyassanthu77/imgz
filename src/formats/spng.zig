@@ -16,7 +16,7 @@ pub fn get(
         .target = target,
         .optimize = optimize,
     })) |zlib_dep| {
-        lib.linkLibrary(zlib_dep.artifact("z"));
+        mod.linkLibrary(zlib_dep.artifact("z"));
     }
 
     if (b.lazyDependency("spng_upstream", .{})) |spng_dep| {

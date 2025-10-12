@@ -53,6 +53,7 @@ pub fn build(b: *std.Build) !void {
             .enable_simd = webp_simd,
         } else null,
     });
+    imgz.bundle_ubsan_rt = true;
     b.installArtifact(imgz);
 
     const test_step = b.step("test", "Run tests");
