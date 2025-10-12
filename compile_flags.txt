@@ -1,7 +1,6 @@
--std=c23
+-std=c2x
 -Wall
 -Wextra
 -Werror
 -I./zig-out/include/
 -L./zig-out/lib/
--limgz
