@@ -119,7 +119,7 @@ test "tiff decode" {
         @cInclude("tiffio.h");
     });
 
-    const image_path = "test-images/orange.tiff";
+    const image_path = "src/test-images/orange.tiff";
     const tif = c.TIFFOpen(image_path, "r") orelse return error.FailedToOpenTIFF;
     defer _ = c.TIFFClose(tif);
 

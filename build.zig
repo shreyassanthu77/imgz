@@ -1,8 +1,8 @@
 const std = @import("std");
-const Spng = @import("formats/spng.zig");
-const JpegTurbo = @import("formats/jpeg-turbo.zig");
-const Tiff = @import("formats/tiff.zig");
-const Webp = @import("formats/webp.zig");
+const Spng = @import("src/formats/spng.zig");
+const JpegTurbo = @import("src/formats/jpeg-turbo.zig");
+const Tiff = @import("src/formats/tiff.zig");
+const Webp = @import("src/formats/webp.zig");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -65,7 +65,7 @@ pub fn build(b: *std.Build) !void {
 
     const test_exe = b.addTest(.{
         .root_module = b.createModule(.{
-            .root_source_file = b.path("test.zig"),
+            .root_source_file = b.path("src/test.zig"),
             .target = target,
             .optimize = optimize,
             .imports = &.{

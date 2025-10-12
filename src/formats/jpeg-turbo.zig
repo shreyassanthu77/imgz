@@ -262,7 +262,7 @@ pub fn get(
                     };
 
                     for (asm_files) |asm_file| {
-                        const obj_file = nasmCompile(b, j, target, "simd/x86_64", j.path(asm_file));
+                        const obj_file = nasmCompile(b, j, target, "simd/x86_64", j.path(asm_file), lib.pie orelse false);
                         mod.addObjectFile(obj_file);
                     }
 
@@ -321,7 +321,7 @@ pub fn get(
                     };
 
                     for (asm_files) |asm_file| {
-                        const obj_file = nasmCompile(b, j, target, "simd/i386", j.path(asm_file));
+                        const obj_file = nasmCompile(b, j, target, "simd/i386", j.path(asm_file), lib.pie orelse false);
                         mod.addObjectFile(obj_file);
                     }
 
@@ -445,6 +445,7 @@ fn nasmCompile(
     target: std.Build.ResolvedTarget,
     include_path: []const u8,
     asm_file: std.Build.LazyPath,
+    pic: bool,
 ) std.Build.LazyPath {
     const ofmt = target.result.ofmt;
     const arch = target.result.cpu.arch;
@@ -473,7 +474,7 @@ fn nasmCompile(
         "-Isrc",
         b.fmt("-D{s}", .{D}),
         if (arch == .x86_64) "-D__x86_64__" else "",
-        "-DPIC",
+        if (pic) "-DPIC" else "",
         "-Isimd/nasm",
         b.fmt("-I{s}", .{include_path}),
         "-f",
