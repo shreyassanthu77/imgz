@@ -131,6 +131,10 @@ jobs:
         run: |
           zig build test -Dspng=false -Djpeg_turbo=false -Dtiff=false -Dwebp=true --summary all --verbose
 
+      - name: Run C tests
+        run: |
+          make test
+
   publish:
     if: startsWith(github.ref, 'refs/tags/')
     needs: [build]
