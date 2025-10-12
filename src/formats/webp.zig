@@ -14,14 +14,13 @@ pub const InternalOptions = struct {
 pub fn get(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
+    _optimize: std.builtin.OptimizeMode,
     lib: *std.Build.Step.Compile,
     options: Options,
     internal_options: InternalOptions,
 ) !void {
+    _ = _optimize;
     const mod = lib.root_module;
-
-    const sharpyuv_lib = try getSharpyuv(b, target, optimize);
 
     if (b.lazyDependency("libwebp_upstream", .{})) |webp_dep| {
         const config = b.addConfigHeader(.{
@@ -250,36 +249,8 @@ pub fn get(
             else => {},
         }
 
-        mod.linkLibrary(sharpyuv_lib);
-
-        lib.installHeader(webp_dep.path("src/webp/decode.h"), "webp/decode.h");
-        if (options.enable_encoding) {
-            lib.installHeader(webp_dep.path("src/webp/encode.h"), "webp/encode.h");
-        }
-        lib.installHeader(webp_dep.path("src/webp/types.h"), "webp/types.h");
-    }
-}
-
-pub fn getSharpyuv(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-) !*std.Build.Step.Compile {
-    const sharpyuv_mod = b.createModule(.{
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    });
-    const sharpyuv_lib = b.addLibrary(.{
-        .name = "sharpyuv",
-        .root_module = sharpyuv_mod,
-    });
-
-    if (b.lazyDependency("libwebp_upstream", .{})) |webp_dep| {
-        sharpyuv_mod.addIncludePath(webp_dep.path("."));
-
-        // Add common sharpyuv sources
-        sharpyuv_mod.addCSourceFiles(.{
+        // Add sharpyuv sources
+        mod.addCSourceFiles(.{
             .files = &.{
                 "sharpyuv/sharpyuv_cpu.c",
                 "sharpyuv/sharpyuv_csp.c",
@@ -291,18 +262,17 @@ pub fn getSharpyuv(
             .root = webp_dep.path("."),
         });
 
-        // Add SIMD sources based on target architecture
-        const arch = target.result.cpu.arch;
+        // Add SIMD sources for sharpyuv based on target architecture
         switch (arch) {
             .x86_64, .x86 => {
-                sharpyuv_mod.addCSourceFiles(.{
+                mod.addCSourceFiles(.{
                     .files = &.{"sharpyuv/sharpyuv_sse2.c"},
                     .flags = &.{"-std=c99"},
                     .root = webp_dep.path("."),
                 });
             },
             .aarch64, .arm => {
-                sharpyuv_mod.addCSourceFiles(.{
+                mod.addCSourceFiles(.{
                     .files = &.{"sharpyuv/sharpyuv_neon.c"},
                     .flags = &.{"-std=c99"},
                     .root = webp_dep.path("."),
@@ -311,9 +281,10 @@ pub fn getSharpyuv(
             else => {},
         }
 
-        sharpyuv_lib.installHeader(webp_dep.path("sharpyuv/sharpyuv.h"), "sharpyuv.h");
-        sharpyuv_lib.installHeader(webp_dep.path("sharpyuv/sharpyuv_csp.h"), "sharpyuv_csp.h");
+        lib.installHeader(webp_dep.path("src/webp/decode.h"), "webp/decode.h");
+        if (options.enable_encoding) {
+            lib.installHeader(webp_dep.path("src/webp/encode.h"), "webp/encode.h");
+        }
+        lib.installHeader(webp_dep.path("src/webp/types.h"), "webp/types.h");
     }
-
-    return sharpyuv_lib;
 }
