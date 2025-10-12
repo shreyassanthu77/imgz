@@ -54,27 +54,25 @@ pub fn build(b: *std.Build) !void {
     };
     try buildLibs(b, options, .{}, b.getInstallStep());
 
+    const zig_tests: []const struct { path: []const u8, enabled: bool } = &.{
+        .{ .path = "src/tests/spng.zig", .enabled = enable_spng },
+        .{ .path = "src/tests/jpeg-turbo.zig", .enabled = enable_jpeg_turbo },
+        .{ .path = "src/tests/tiff.zig", .enabled = enable_tiff },
+        .{ .path = "src/tests/webp.zig", .enabled = enable_webp },
+    };
     const test_step = b.step("test", "Run tests");
-    const test_options = b.addOptions();
-    test_options.addOption(bool, "spng_enabled", enable_spng);
-    test_options.addOption(bool, "jpeg_turbo_enabled", enable_jpeg_turbo);
-    test_options.addOption(bool, "tiff_enabled", enable_tiff);
-    test_options.addOption(bool, "webp_enabled", enable_webp);
-    test_options.addOption(bool, "webp_encoding_enabled", webp_encoding);
-
-    const test_exe = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/test.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "opts", .module = test_options.createModule() },
-            },
-        }),
-    });
-    try addToModule1(b, test_exe.root_module, options);
-    const run_test_exe = b.addRunArtifact(test_exe);
-    test_step.dependOn(&run_test_exe.step);
+    for (zig_tests) |t| if (t.enabled) {
+        const test_exe = b.addTest(.{
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(t.path),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+        try addToModule1(b, test_exe.root_module, options);
+        const run_test_exe = b.addRunArtifact(test_exe);
+        test_step.dependOn(&run_test_exe.step);
+    };
 
     const ci_step = b.step("ci", "Run tests on CI");
     const build_targets: []const std.Target.Query = &.{
