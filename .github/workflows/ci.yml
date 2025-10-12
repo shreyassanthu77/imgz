@@ -91,13 +91,10 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: x86_64
-            target: x86_64-linux
           - os: windows-latest
             arch: x86_64
-            target: x86_64-windows
           - os: macos-latest
             arch: aarch64
-            target: aarch64-macos
     defaults:
       run:
         shell: bash
@@ -136,7 +133,7 @@ jobs:
 
       - name: Run C tests
         run: |
-          zig build -Dtarget=${{ matrix.target }} --summary all --verbose
+          zig build -Doptimize=ReleaseFast --summary all --verbose
           make test
 
   publish:
