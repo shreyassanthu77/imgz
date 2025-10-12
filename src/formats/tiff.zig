@@ -1,4 +1,5 @@
 const std = @import("std");
+const RequiredLibrary = @import("shared.zig").RequiredLibrary;
 
 pub const Options = struct {
     has_glut_glut_h: bool = false,
@@ -7,28 +8,24 @@ pub const Options = struct {
     has_gl_gl_h: bool = false,
     has_opengl_glu_h: bool = false,
     has_opengl_gl_h: bool = false,
-
-    has_liblzma: bool = false,
-    use_system_liblzma: bool = false,
-    has_libzstd: bool = false,
-    use_system_libzstd: bool = false,
-    has_liblerc: bool = false,
-    use_system_liblerc: bool = false,
 };
 
-pub const InternalOptions = struct {
-    has_libjpeg: bool = false,
-    has_libwebp: bool = false,
+pub const Deps = struct {
+    libz: RequiredLibrary = .disabled,
+    libjpeg_turbo: RequiredLibrary = .disabled,
+    libwebp: RequiredLibrary = .disabled,
+    liblzma: RequiredLibrary = .disabled,
+    libzstd: RequiredLibrary = .disabled,
+    liblerc: RequiredLibrary = .disabled,
 };
 
 pub fn get(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    lib: *std.Build.Step.Compile,
     options: Options,
-    internal_options: InternalOptions,
-) !void {
+    deps: Deps,
+) !*std.Build.Step.Compile {
     const has_glut_glut_h = options.has_glut_glut_h;
     const has_gl_glut_h = options.has_gl_glut_h;
     const has_gl_glu_h = options.has_gl_glu_h;
@@ -36,17 +33,16 @@ pub fn get(
     const has_opengl_glu_h = options.has_opengl_glu_h;
     const has_opengl_gl_h = options.has_opengl_gl_h;
 
-    const has_liblzma = options.has_liblzma;
-    const use_system_liblzma = options.use_system_liblzma;
-    const has_libzstd = options.has_libzstd;
-    const use_system_libzstd = options.use_system_libzstd;
-    const has_liblerc = options.has_liblerc;
-    const use_system_liblerc = options.use_system_liblerc;
-
-    const has_libjpeg = internal_options.has_libjpeg;
-    const has_libwebp = internal_options.has_libwebp;
-
-    const mod = lib.root_module;
+    const mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    const lib = b.addLibrary(.{
+        .name = "tiff",
+        .root_module = mod,
+        .linkage = .static,
+    });
 
     if (b.lazyDependency("libtiff_upstream", .{})) |tiff_upstream| {
         const bit_width = target.result.ptrBitWidth() / 8;
@@ -77,13 +73,13 @@ pub fn get(
             .HAVE_STRINGS_H = true,
             .HAVE_SYS_TYPES_H = true,
             .HAVE_UNISTD_H = target.result.os.tag != .windows,
-            .JPEG_DUAL_MODE_8_12 = has_libjpeg,
+            .JPEG_DUAL_MODE_8_12 = deps.libjpeg_turbo != .disabled,
             .HAVE_JPEGTURBO_DUAL_MODE_8_12 = false,
-            .LERC_SUPPORT = use_system_liblerc or has_liblerc,
-            .LERC_STATIC = has_liblerc,
-            .LZMA_SUPPORT = use_system_liblzma or has_liblzma,
-            .WEBP_SUPPORT = has_libwebp,
-            .ZSTD_SUPPORT = use_system_libzstd or has_libzstd,
+            .LERC_SUPPORT = deps.liblerc != .disabled,
+            .LERC_STATIC = deps.liblerc != .disabled,
+            .LZMA_SUPPORT = deps.liblzma != .disabled,
+            .WEBP_SUPPORT = deps.libwebp != .disabled,
+            .ZSTD_SUPPORT = deps.libzstd != .disabled,
             .USE_WIN32_FILEIO = target.result.os.tag == .windows,
             .SIZEOF_SIZE_T = bit_width,
             .STRIP_SIZE_DEFAULT = 8192,
@@ -118,9 +114,9 @@ pub fn get(
             .HAVE_IEEEFP = true,
             .HOST_BIG_ENDIAN = target.result.cpu.arch.endian(),
             .CCITT_SUPPORT = true,
-            .JPEG_SUPPORT = has_libjpeg,
+            .JPEG_SUPPORT = deps.libjpeg_turbo != .disabled,
             .JBIG_SUPPORT = false,
-            .LERC_SUPPORT = use_system_liblerc or has_liblerc,
+            .LERC_SUPPORT = deps.liblerc != .disabled,
             .LOGLUV_SUPPORT = true,
             .LZW_SUPPORT = true,
             .NEXT_SUPPORT = false,
@@ -230,21 +226,44 @@ pub fn get(
             },
         });
 
-        if (b.lazyDependency("zlib", .{
-            .target = target,
-            .optimize = optimize,
-        })) |zlib_dep| {
-            mod.linkLibrary(zlib_dep.artifact("z"));
+        switch (deps.libz) {
+            .system => mod.linkSystemLibrary("z", .{}),
+            .bundled => if (b.lazyDependency("zlib", .{
+                .target = target,
+                .optimize = optimize,
+            })) |zlib_dep| {
+                mod.linkLibrary(zlib_dep.artifact("z"));
+            },
+            .custom => {}, // user is responsible for providing the library
+            .disabled => {},
         }
 
-        if (use_system_liblzma and !has_liblzma) {
-            mod.linkSystemLibrary("lzma", .{});
+        switch (deps.liblzma) {
+            .system => mod.linkSystemLibrary("lzma", .{}),
+            .bundled => {
+                std.log.err("imgz doesn't support bundled liblzma", .{});
+                return error.UnsupportedLiblzma;
+            },
+            .custom => {}, // user is responsible for providing the library
+            .disabled => {},
         }
-        if (use_system_liblerc and !has_liblerc) {
-            mod.linkSystemLibrary("Lerc", .{});
+        switch (deps.liblerc) {
+            .system => mod.linkSystemLibrary("Lerc", .{}),
+            .bundled => {
+                std.log.err("imgz doesn't support bundled liblerc", .{});
+                return error.UnsupportedLiblerc;
+            },
+            .custom => {}, // user is responsible for providing the library
+            .disabled => {},
         }
-        if (use_system_libzstd and !has_libzstd) {
-            mod.linkSystemLibrary("zstd", .{});
+        switch (deps.libzstd) {
+            .system => mod.linkSystemLibrary("zstd", .{}),
+            .bundled => {
+                std.log.err("imgz doesn't support bundled libzstd", .{});
+                return error.UnsupportedLibzstd;
+            },
+            .custom => {}, // user is responsible for providing the library
+            .disabled => {},
         }
 
         lib.installHeader(tiff_upstream.path("libtiff/tiff.h"), "tiff.h");
@@ -253,4 +272,6 @@ pub fn get(
         lib.installConfigHeader(tif_config);
         lib.installConfigHeader(tiffconf);
     }
+
+    return lib;
 }

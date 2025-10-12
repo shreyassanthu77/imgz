@@ -16,11 +16,8 @@ pub fn get(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    lib: *std.Build.Step.Compile,
     options: Options,
-) !void {
-    _ = optimize;
-
+) !*std.Build.Step.Compile {
     const enable_arith_enc = options.arith_enc;
     const enable_arith_dec = options.arith_dec;
     const with_simd = options.simd and !target.result.cpu.arch.isRISCV();
@@ -28,7 +25,16 @@ pub fn get(
     const libjpeg_turbo_version_number = computeVersionNumber(conf.version);
     const build_date = try computeBuildDate(b.allocator);
 
-    const mod = lib.root_module;
+    const mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    const lib = b.addLibrary(.{
+        .name = "jpeg-turbo",
+        .root_module = mod,
+        .linkage = .static,
+    });
 
     if (b.lazyDependency("libjpeg_turbo_upstream", .{})) |j| {
         const jconfig = b.addConfigHeader(.{
@@ -437,6 +443,8 @@ pub fn get(
         lib.installHeader(j.path("src/jmorecfg.h"), "jmorecfg.h");
         lib.installHeader(j.path("src/jpeglib.h"), "jpeglib.h");
     }
+
+    return lib;
 }
 
 fn nasmCompile(

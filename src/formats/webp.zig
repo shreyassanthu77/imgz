@@ -1,4 +1,5 @@
 const std = @import("std");
+const RequiredLibrary = @import("shared.zig").RequiredLibrary;
 
 pub const Options = struct {
     enable_encoding: bool = true,
@@ -7,20 +8,29 @@ pub const Options = struct {
     enable_simd: bool = true,
 };
 
-pub const InternalOptions = struct {
-    has_libjpeg: bool = false,
+pub const Deps = struct {
+    libz: RequiredLibrary = .disabled,
+    libjpeg_turbo: RequiredLibrary = .disabled,
+    libsharpyuv: RequiredLibrary = .bundled,
 };
 
 pub fn get(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
-    _optimize: std.builtin.OptimizeMode,
-    lib: *std.Build.Step.Compile,
+    optimize: std.builtin.OptimizeMode,
     options: Options,
-    internal_options: InternalOptions,
-) !void {
-    _ = _optimize;
-    const mod = lib.root_module;
+    deps: Deps,
+) !*std.Build.Step.Compile {
+    const mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    const lib = b.addLibrary(.{
+        .name = "webp",
+        .root_module = mod,
+        .linkage = .static,
+    });
 
     if (b.lazyDependency("libwebp_upstream", .{})) |webp_dep| {
         const config = b.addConfigHeader(.{
@@ -50,7 +60,7 @@ pub fn get(
             .HAVE_WINCODEC_H = target.result.os.tag == .windows,
             .HAVE_WINDOWS_H = target.result.os.tag == .windows,
             .WEBP_HAVE_GIF = false,
-            .WEBP_HAVE_JPEG = internal_options.has_libjpeg,
+            .WEBP_HAVE_JPEG = deps.libjpeg_turbo != .disabled,
             .WEBP_HAVE_PNG = false,
             .WEBP_HAVE_TIFF = false,
             .WEBP_HAVE_SDL = false,
@@ -249,18 +259,28 @@ pub fn get(
             else => {},
         }
 
-        // Add sharpyuv sources
-        mod.addCSourceFiles(.{
-            .files = &.{
-                "sharpyuv/sharpyuv_cpu.c",
-                "sharpyuv/sharpyuv_csp.c",
-                "sharpyuv/sharpyuv_dsp.c",
-                "sharpyuv/sharpyuv_gamma.c",
-                "sharpyuv/sharpyuv.c",
+        switch (deps.libsharpyuv) {
+            .system => mod.linkSystemLibrary("sharpyuv", .{}),
+            .bundled => {
+                // Add sharpyuv sources
+                mod.addCSourceFiles(.{
+                    .files = &.{
+                        "sharpyuv/sharpyuv_cpu.c",
+                        "sharpyuv/sharpyuv_csp.c",
+                        "sharpyuv/sharpyuv_dsp.c",
+                        "sharpyuv/sharpyuv_gamma.c",
+                        "sharpyuv/sharpyuv.c",
+                    },
+                    .flags = &.{"-std=c99"},
+                    .root = webp_dep.path("."),
+                });
             },
-            .flags = &.{"-std=c99"},
-            .root = webp_dep.path("."),
-        });
+            .custom => {}, // user is responsible for providing the library
+            .disabled => {
+                std.log.err("Webp requires sharpyuv, but it was disabled", .{});
+                return error.SharpyuvDisabled;
+            },
+        }
 
         // Add SIMD sources for sharpyuv based on target architecture
         switch (arch) {
@@ -287,4 +307,6 @@ pub fn get(
         }
         lib.installHeader(webp_dep.path("src/webp/types.h"), "webp/types.h");
     }
+
+    return lib;
 }
