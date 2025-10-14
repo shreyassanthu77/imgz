@@ -1,7 +1,10 @@
 CC=gcc
 CFLAGS=$(shell cat compile_flags.txt) src/tests/shared.c
 
-test: test_spng test_jpeg-turbo test_tiff test_webp
+test: ensure_dirs test_spng test_jpeg-turbo test_tiff test_webp
+
+ensure_dirs:
+	mkdir -p zig-cache/test-outputs
 
 test_spng: src/tests/spng.c
 	$(CC) $(CFLAGS) -o test_spng src/tests/spng.c -lspng -lz -lm

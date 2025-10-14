@@ -9,7 +9,7 @@ bool test_tiff_encode() {
 
   auto pixels = generate_gradient_pixels(width, height, true);
 
-  const char *output_path = "/tmp/temp_output.tiff";
+  const char *output_path = "./zig-cache/test-outputs/tiff_encode.tiff";
   TIFF *tif = TIFFOpen(output_path, "w");
   if (!tif) {
     free(pixels.data);
