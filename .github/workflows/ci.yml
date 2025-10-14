@@ -91,10 +91,13 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: x86_64
+            target: aarch64-linux
           - os: windows-latest
             arch: x86_64
+            target: x86_64-windows
           - os: macos-latest
             arch: aarch64
+            target: aarch64-macos
     defaults:
       run:
         shell: bash
@@ -113,7 +116,7 @@ jobs:
 
       - name: Run tests (All enabled)
         run: |
-          zig build test --summary all --verbose
+          zig build test -Dtarget=${{ matrix.target }} --summary all --verbose
 
       - name: Run C tests
         run: |
