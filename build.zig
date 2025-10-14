@@ -28,7 +28,7 @@ pub fn build(b: *std.Build) !void {
     const libsharpyuv = b.option(RequiredLibrary, "libsharpyuv", "Choose which version of libsharpyuv to use") orelse .bundled;
     const liblerc = b.option(bool, "liblerc", "Enable lerc support in libtiff. If enabled, system must have liblerc headers during build and the library during linking") orelse false;
     const liblzma = b.option(bool, "liblzma", "Enable lzma support in libtiff. If enabled, system must have liblzma headers during build and the library during linking") orelse false;
-    const libzstd = b.option(bool, "libzstd", "Enable zstd support in libtiff. If enabled, system must have libzstd headers during build and the library during linking") orelse false;
+    const libzstd = b.option(RequiredLibrary, "libzstd", "Choose which version of libzstd to use") orelse .bundled;
 
     const options = Options{
         .target = target,
@@ -50,7 +50,7 @@ pub fn build(b: *std.Build) !void {
         .libsharpyuv = libsharpyuv,
         .liblerc = if (liblerc) .custom else .disabled,
         .liblzma = if (liblzma) .custom else .disabled,
-        .libzstd = if (libzstd) .custom else .disabled,
+        .libzstd = libzstd,
     };
     try buildLibs(b, options, .{}, b.getInstallStep());
 
@@ -124,7 +124,7 @@ pub const Options = struct {
     /// Required for tiff
     liblzma: RequiredLibrary = .disabled,
     /// Required for tiff
-    libzstd: RequiredLibrary = .disabled,
+    libzstd: RequiredLibrary = .bundled,
 };
 
 pub fn addToModule(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
@@ -211,6 +211,15 @@ pub fn buildLibs(
             .optimize = optimize,
         })) |zlib_dep| {
             installLib(b, zlib_dep.artifact("z"), install_options, step);
+        }
+    }
+
+    if (options.libzstd == .bundled) {
+        if (b.lazyDependency("zstd", .{
+            .target = target,
+            .optimize = optimize,
+        })) |zstd_dep| {
+            installLib(b, zstd_dep.artifact("zstd"), install_options, step);
         }
     }
 

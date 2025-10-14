@@ -15,7 +15,7 @@ pub const Deps = struct {
     libjpeg_turbo: RequiredLibrary = .disabled,
     libwebp: RequiredLibrary = .disabled,
     liblzma: RequiredLibrary = .disabled,
-    libzstd: RequiredLibrary = .disabled,
+    libzstd: RequiredLibrary = .bundled,
     liblerc: RequiredLibrary = .disabled,
 };
 
@@ -258,9 +258,11 @@ pub fn get(
         }
         switch (deps.libzstd) {
             .system => mod.linkSystemLibrary("zstd", .{}),
-            .bundled => {
-                std.log.err("imgz doesn't support bundled libzstd", .{});
-                return error.UnsupportedLibzstd;
+            .bundled => if (b.lazyDependency("zstd", .{
+                .target = target,
+                .optimize = optimize,
+            })) |zstd_dep| {
+                mod.linkLibrary(zstd_dep.artifact("zstd"));
             },
             .custom => {}, // user is responsible for providing the library
             .disabled => {},
