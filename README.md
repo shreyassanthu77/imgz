@@ -19,7 +19,7 @@ zig fetch --save git+https://github.com/shreyassanthu77/imgz.git
 
 ```zig
 const std = @import("std");
-const imgz_pkg = @import("imgz");
+const imgz = @import("imgz");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -29,32 +29,31 @@ pub fn build(b: *std.Build) !void {
         ...
     });
 
-    // returns a static library with selected dependencies linked
-    const imgz_lib = try imgz_pkg.get(b, .{
+    // Add imgz libraries to the executable's module
+    const options = imgz.Options{
         .target = target,
         .optimize = optimize,
         .jpeg_turbo = .{},
         .spng = .{},
         .tiff = .{},
         .webp = .{},
-    });
-
-    exe.linkLibrary(imgz_lib);
+    };
+    try imgz.addToModule(b, exe.root_module, options);
 }
 ```
 
 ## Usage in Code
 
-Use the C APIs directly via `@cImport`. Headers from enabled libraries are provided by linking `imgz_lib`, so no extra include paths are typically required.
+Use the C APIs directly via `@cImport`. Headers from enabled libraries are provided by adding imgz to your module, so no extra include paths are typically required.
 
 ## Configuration
 
-You can configure imgz either as a dependency (via the `get` API) or when building this repository with `zig build` flags.
+You can configure imgz either as a dependency (via the `addToModule` API) or when building this repository with `zig build` flags.
 
-- As a dependency (recommended) — pass options to `imgz_pkg.get(...)`:
+- As a dependency (recommended) — pass options to `imgz.addToModule(...)`:
 
 ```zig
-const imgz_lib = try imgz_pkg.get(b, .{
+const options = imgz.Options{
     .target = target,
     .optimize = optimize,
     .jpeg_turbo = .{
@@ -63,68 +62,61 @@ const imgz_lib = try imgz_pkg.get(b, .{
         .simd = true,       // SIMD extensions
     },
     .spng = .{},            // libspng (no options currently)
-     .tiff = .{
-         // Optional codec/backends
-         .has_liblzma = false,
-         .use_system_liblzma = false,
-         .has_libzstd = false,
-         .use_system_libzstd = false,
-         .has_liblerc = false,
-         .use_system_liblerc = false,
-
-         // OpenGL header feature toggles
-         .has_glut_glut_h = false,
-         .has_gl_glut_h = false,
-         .has_gl_glu_h = false,
-         .has_gl_gl_h = false,
-         .has_opengl_glu_h = false,
-         .has_opengl_gl_h = false,
-     },
-      .webp = .{
-          .enable_encoding = true,
-          .enable_mux = true, // currently no effect (mux/demux not exposed)
-          .enable_threading = true,
-          .enable_simd = true,
-      },
-});
+    .tiff = .{},            // libtiff (no options currently)
+    .webp = .{
+        .enable_encoding = true,
+        .enable_mux = true, // currently no effect (mux/demux not exposed)
+        .enable_threading = true,
+        .enable_simd = true,
+    },
+    .libz = .bundled,       // zlib: bundled, system, custom, or disabled
+    .libsharpyuv = .bundled, // libsharpyuv: bundled, system, custom, or disabled
+    .liblerc = .disabled,   // liblerc for tiff: bundled, system, custom, or disabled
+    .liblzma = .disabled,   // liblzma for tiff: bundled, system, custom, or disabled
+    .libzstd = .disabled,   // libzstd for tiff: bundled, system, custom, or disabled
+};
+try imgz.addToModule(b, exe.root_module, options);
 ```
 
 Set any library option to `null` to exclude it from the build:
 
 ```zig
-const imgz_lib = try imgz_pkg.get(b, .{
+const options = imgz.Options{
     .target = target,
     .optimize = optimize,
     .jpeg_turbo = null,  // exclude libjpeg-turbo
     .spng = .{},
     .tiff = .{},
-});
+    .webp = .{},
+};
+try imgz.addToModule(b, exe.root_module, options);
 ```
-
-Notes:
-- The TIFF OpenGL options map to `HAVE_GL*`/`HAVE_OPENGL_*` checks in `tif_config.h`. They only control feature macros; they do not link OpenGL libraries for you.
 
 - When building this repo directly — available flags (defaults in parentheses):
   - `-Dspng` (true): enable libspng
   - `-Djpeg_turbo` (true): enable libjpeg-turbo
-  - `-Djpeg_turbo_arith_enc` (true)
-  - `-Djpeg_turbo_arith_dec` (true)
-  - `-Djpeg_turbo_simd` (true)
+  - `-Djpeg_turbo_arith_enc` (true): enable arithmetic encoding
+  - `-Djpeg_turbo_arith_dec` (true): enable arithmetic decoding
+  - `-Djpeg_turbo_simd` (true): enable SIMD extensions
   - `-Dtiff` (true): enable libtiff
-  - `-Dtiff_has_liblzma` (false), `-Dtiff_use_system_liblzma` (false)
-  - `-Dtiff_has_libzstd` (false), `-Dtiff_use_system_libzstd` (false)
-  - `-Dtiff_has_liblerc` (false), `-Dtiff_use_system_liblerc` (false)
   - `-Dwebp` (true): enable libwebp
-  - `-Dwebp_encoding` (true), `-Dwebp_mux` (true)
-  - `-Dwebp_threading` (true), `-Dwebp_simd` (true)
+  - `-Dwebp_encoding` (true): enable encoding
+  - `-Dwebp_mux` (true): enable mux support
+  - `-Dwebp_threading` (true): enable threading
+  - `-Dwebp_simd` (true): enable SIMD
+  - `-Dlibz` (bundled): zlib version (bundled/system/custom/disabled)
+  - `-Dlibsharpyuv` (bundled): libsharpyuv version (bundled/system/custom/disabled)
+  - `-Dliblerc` (false): enable lerc support in libtiff
+  - `-Dliblzma` (false): enable lzma support in libtiff
+  - `-Dlibzstd` (false): enable zstd support in libtiff
 
-  Note: For TIFF extras, set `use_system_* = true` and leave `has_* = false` to link system libraries. Vendored liblzma/libzstd/liblerc are not included.
+  Note: For TIFF extras, set the corresponding flag to `true` to enable system library linking. Bundled versions are not provided for liblerc/liblzma/libzstd.
 Examples:
 
 ```sh
 zig build -Djpeg_turbo=false
 zig build -Djpeg_turbo_simd=false   # if nasm is unavailable
-zig build -Dtiff_has_liblzma=true -Dtiff_use_system_liblzma=true
+zig build -Dliblzma=true            # enable lzma support in libtiff
 zig build -Dwebp=false
 zig build -Dwebp_simd=false
 ```
@@ -170,8 +162,8 @@ These are pinned in `build.zig.zon`:
 ## Troubleshooting
 
 - `nasm: command not found` or assembler errors on x86/x86_64: install NASM or set `.simd = false` / `-Djpeg_turbo_simd=false`.
-- `@cImport` cannot find headers: ensure your artifact links the returned `imgz_lib` from `imgz_pkg.get(...)` before compiling sources that `@cInclude`.
-- Missing system libs when enabling TIFF extras: when using `use_system_* = true`, ensure the corresponding system library is installed and discoverable by the host toolchain.
+- `@cImport` cannot find headers: ensure `imgz.addToModule(...)` is called on the module that contains the `@cImport` before compiling.
+- Missing system libs when enabling TIFF extras: when setting `.liblerc = .system`, `.liblzma = .system`, or `.libzstd = .system`, ensure the corresponding system library is installed and discoverable by the host toolchain.
 
 ## Contributing
 
