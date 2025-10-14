@@ -205,7 +205,7 @@ pub fn buildLibs(
     const has_libjpeg = options.jpeg_turbo != null;
     const has_libwebp = options.webp != null;
 
-    if (options.libz == .bundled) {
+    if (options.libz == .bundled and (options.spng != null or options.tiff != null)) {
         if (b.lazyDependency("zlib", .{
             .target = target,
             .optimize = optimize,
@@ -214,7 +214,7 @@ pub fn buildLibs(
         }
     }
 
-    if (options.libzstd == .bundled) {
+    if (options.libzstd == .bundled and options.tiff != null) {
         if (b.lazyDependency("zstd", .{
             .target = target,
             .optimize = optimize,
