@@ -91,7 +91,7 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: x86_64
-            target: aarch64-linux
+            target: x86_64-linux
           - os: windows-latest
             arch: x86_64
             target: x86_64-windows
