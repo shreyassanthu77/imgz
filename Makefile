@@ -17,7 +17,7 @@ test_jpeg-turbo: src/tests/jpeg-turbo.c
 	rm test_jpeg-turbo
 
 test_tiff: src/tests/tiff.c
-	$(CC) $(CFLAGS) -o test_tiff src/tests/tiff.c -ltiff -lz -lwebp -lm -ljpeg-turbo
+	$(CC) $(CFLAGS) -o test_tiff src/tests/tiff.c -ltiff -lz -lwebp -lm -ljpeg-turbo -lzstd
 	./test_tiff
 	rm test_tiff
 
