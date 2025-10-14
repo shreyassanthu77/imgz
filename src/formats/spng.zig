@@ -1,5 +1,7 @@
 const std = @import("std");
-const RequiredLibrary = @import("shared.zig").RequiredLibrary;
+const shared = @import("shared.zig");
+const RequiredLibrary = shared.RequiredLibrary;
+const LazyFileEditor = shared.LazyFileEditor;
 
 pub const Options = struct {};
 
@@ -52,8 +54,20 @@ pub fn get(
             .flags = &.{ "-std=c99", "-DSPNG_STATIC" },
             .root = spng_dep.path("spng"),
         });
-        lib.installHeader(spng_dep.path("spng/spng.h"), "spng.h");
+
+        const spng_out_h_gen = LazyFileEditor.create(b, spng_dep.path("spng/spng.h"), "spng.h", spng_header_editor);
+        lib.installHeader(spng_out_h_gen.result, "spng.h");
     }
 
     return lib;
+}
+
+fn spng_header_editor(source_contents: []const u8, out_writer: *std.Io.Writer) anyerror!void {
+    try out_writer.writeAll(
+        \\#ifndef SPNG_STATIC
+        \\#define SPNG_STATIC
+        \\#endif
+        \\
+    );
+    try out_writer.writeAll(source_contents);
 }
