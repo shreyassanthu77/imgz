@@ -6,7 +6,7 @@ Supports cross-compilation to almost all platforms (create an issue if it doesn'
 
 ## Requirements
 
-- Zig: 0.14.0 or newer
+- Zig: 0.15.0 or newer
 - NASM: required on x86/x86_64 for libjpeg-turbo SIMD. If unavailable, disable SIMD via `.simd = false` (consumer) or `-Djpeg_turbo_simd=false` (when building this repo).
 
 ## Install
