@@ -49,7 +49,7 @@ pub fn get(
         mod.addIncludePath(spng_dep.path("spng"));
         mod.addCSourceFiles(.{
             .files = &.{"spng.c"},
-            .flags = &.{"-std=c99"},
+            .flags = &.{ "-std=c99", "-DSPNG_STATIC" },
             .root = spng_dep.path("spng"),
         });
         lib.installHeader(spng_dep.path("spng/spng.h"), "spng.h");
