@@ -116,7 +116,7 @@ jobs:
 
       - name: Run tests (All enabled)
         run: |
-          zig build test -Djpeg_turbo=false -Dtarget=${{ matrix.target }} --summary all --verbose
+          zig build test -Dtarget=${{ matrix.target }} --summary all --verbose
 
       - name: Run C tests
         run: |
