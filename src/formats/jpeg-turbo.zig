@@ -205,8 +205,20 @@ pub fn get(
                 "src/wrapper/jutils-8.c",
                 "src/wrapper/jutils-12.c",
                 "src/wrapper/jutils-16.c",
+                "src/turbojpeg.c",
+                "src/transupp.c",
+                "src/jdatadst-tj.c",
+                "src/jdatasrc-tj.c",
+                "src/rdbmp.c",
+                "src/wrbmp.c",
+                "src/wrapper/rdppm-8.c",
+                "src/wrapper/rdppm-12.c",
+                "src/wrapper/rdppm-16.c",
+                "src/wrapper/wrppm-8.c",
+                "src/wrapper/wrppm-12.c",
+                "src/wrapper/wrppm-16.c",
             },
-            .flags = &.{"-std=c89"},
+            .flags = &.{ "-std=c89", "-DBMP_SUPPORTED", "-DPPM_SUPPORTED" },
             .root = j.path("."),
         });
 
@@ -442,6 +454,7 @@ pub fn get(
         lib.installHeader(j.path("src/jerror.h"), "jerror.h");
         lib.installHeader(j.path("src/jmorecfg.h"), "jmorecfg.h");
         lib.installHeader(j.path("src/jpeglib.h"), "jpeglib.h");
+        lib.installHeader(j.path("src/turbojpeg.h"), "turbojpeg.h");
     }
 
     return lib;

@@ -72,3 +72,169 @@ test "jpeg-turbo decode" {
     _ = jpeg_c.jpeg_finish_decompress(&dinfo);
     try std.testing.expect(decoded_rgb.len > 0);
 }
+
+test "turbojpeg compress" {
+    const tj = @cImport({
+        @cInclude("stddef.h");
+        @cInclude("stdio.h");
+        @cInclude("turbojpeg.h");
+    });
+
+    const width: c_int = 16;
+    const height: c_int = 16;
+    const quality: c_int = 90;
+
+    const rgb_pixels = try generateGradientPixels(std.testing.allocator, @as(u32, @intCast(width)), @as(u32, @intCast(height)), false);
+    defer std.testing.allocator.free(rgb_pixels);
+
+    const handle = tj.tjInitCompress();
+    defer _ = tj.tjDestroy(handle);
+
+    var jpeg_buf: [*c]u8 = undefined;
+    var jpeg_size: c_ulong = 0;
+
+    const result = tj.tjCompress2(
+        handle,
+        rgb_pixels.ptr,
+        width,
+        0, // pitch
+        height,
+        tj.TJPF_RGB,
+        &jpeg_buf,
+        &jpeg_size,
+        tj.TJSAMP_444,
+        quality,
+        tj.TJFLAG_ACCURATEDCT,
+    );
+
+    try std.testing.expect(result == 0);
+    try std.testing.expect(jpeg_size > 0);
+    try std.testing.expect(jpeg_buf != null);
+
+    _ = tj.tjFree(jpeg_buf);
+}
+
+test "turbojpeg decompress" {
+    const tj = @cImport({
+        @cInclude("stddef.h");
+        @cInclude("stdio.h");
+        @cInclude("turbojpeg.h");
+    });
+
+    const jpeg_data = @embedFile("test-images/orange.jpeg");
+
+    const handle = tj.tjInitDecompress();
+    defer _ = tj.tjDestroy(handle);
+
+    var width: c_int = undefined;
+    var height: c_int = undefined;
+    var subsamp: c_int = undefined;
+    var colorspace: c_int = undefined;
+
+    const result = tj.tjDecompressHeader3(
+        handle,
+        jpeg_data.ptr,
+        @as(c_ulong, @intCast(jpeg_data.len)),
+        &width,
+        &height,
+        &subsamp,
+        &colorspace,
+    );
+
+    try std.testing.expect(result == 0);
+    try std.testing.expect(width > 0);
+    try std.testing.expect(height > 0);
+
+    const pixel_size = @as(usize, @intCast(width * height * 3)); // RGB
+    const rgb_pixels = try std.testing.allocator.alloc(u8, pixel_size);
+    defer std.testing.allocator.free(rgb_pixels);
+
+    const decompress_result = tj.tjDecompress2(
+        handle,
+        jpeg_data.ptr,
+        @as(c_ulong, @intCast(jpeg_data.len)),
+        rgb_pixels.ptr,
+        width,
+        0, // pitch
+        height,
+        tj.TJPF_RGB,
+        tj.TJFLAG_ACCURATEDCT,
+    );
+
+    try std.testing.expect(decompress_result == 0);
+    try std.testing.expect(rgb_pixels.len == pixel_size);
+}
+
+test "turbojpeg roundtrip" {
+    const tj = @cImport({
+        @cInclude("stddef.h");
+        @cInclude("stdio.h");
+        @cInclude("turbojpeg.h");
+    });
+
+    const width: c_int = 32;
+    const height: c_int = 32;
+    const quality: c_int = 85;
+
+    const original_pixels = try generateGradientPixels(std.testing.allocator, @as(u32, @intCast(width)), @as(u32, @intCast(height)), false);
+    defer std.testing.allocator.free(original_pixels);
+
+    // Compress
+    const compress_handle = tj.tjInitCompress();
+    defer _ = tj.tjDestroy(compress_handle);
+
+    var jpeg_buf: [*c]u8 = undefined;
+    var jpeg_size: c_ulong = 0;
+
+    const compress_result = tj.tjCompress2(
+        compress_handle,
+        original_pixels.ptr,
+        width,
+        0,
+        height,
+        tj.TJPF_RGB,
+        &jpeg_buf,
+        &jpeg_size,
+        tj.TJSAMP_444,
+        quality,
+        tj.TJFLAG_ACCURATEDCT,
+    );
+
+    try std.testing.expect(compress_result == 0);
+    defer _ = tj.tjFree(jpeg_buf);
+
+    // Decompress
+    const decompress_handle = tj.tjInitDecompress();
+    defer _ = tj.tjDestroy(decompress_handle);
+
+    const decompressed_pixels = try std.testing.allocator.alloc(u8, @as(usize, @intCast(width * height * 3)));
+    defer std.testing.allocator.free(decompressed_pixels);
+
+    const decompress_result = tj.tjDecompress2(
+        decompress_handle,
+        jpeg_buf,
+        jpeg_size,
+        decompressed_pixels.ptr,
+        width,
+        0,
+        height,
+        tj.TJPF_RGB,
+        tj.TJFLAG_ACCURATEDCT,
+    );
+
+    try std.testing.expect(decompress_result == 0);
+    try std.testing.expect(decompressed_pixels.len == original_pixels.len);
+
+    // Check that pixels are similar (allowing for JPEG compression loss)
+    var diff_count: usize = 0;
+    const threshold = 10; // Allow small differences due to compression
+    for (original_pixels, 0..) |orig, i| {
+        const diff = @abs(@as(i32, @intCast(orig)) - @as(i32, @intCast(decompressed_pixels[i])));
+        if (diff > threshold) {
+            diff_count += 1;
+        }
+    }
+
+    // Allow some pixels to differ due to compression, but not too many
+    try std.testing.expect(diff_count < @as(usize, @intCast(width * height)) / 4);
+}
