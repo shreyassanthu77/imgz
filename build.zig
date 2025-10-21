@@ -1,4 +1,5 @@
 const std = @import("std");
+const Build = std.Build;
 pub const RequiredLibrary = @import("src/formats/shared.zig").RequiredLibrary;
 pub const Spng = @import("src/formats/spng.zig");
 pub const JpegTurbo = @import("src/formats/jpeg-turbo.zig");
@@ -30,6 +31,8 @@ pub fn build(b: *std.Build) !void {
     const liblzma = b.option(bool, "liblzma", "Enable lzma support in libtiff. If enabled, system must have liblzma headers during build and the library during linking") orelse false;
     const libzstd = b.option(RequiredLibrary, "libzstd", "Choose which version of libzstd to use") orelse .bundled;
 
+    const libc_file = b.option(std.Build.LazyPath, "libc_file", "Path to a custom libc file to use") orelse null;
+
     const options = Options{
         .target = target,
         .optimize = optimize,
@@ -51,6 +54,7 @@ pub fn build(b: *std.Build) !void {
         .liblerc = if (liblerc) .custom else .disabled,
         .liblzma = if (liblzma) .custom else .disabled,
         .libzstd = libzstd,
+        .libc_file = libc_file,
     };
     try buildLibs(b, options, .{}, b.getInstallStep());
 
@@ -125,6 +129,8 @@ pub const Options = struct {
     liblzma: RequiredLibrary = .disabled,
     /// Required for tiff
     libzstd: RequiredLibrary = .bundled,
+
+    libc_file: ?std.Build.LazyPath = null,
 };
 
 pub fn addToModule(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
@@ -193,7 +199,7 @@ fn addToModule1(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
     }
 }
 
-pub fn buildLibs(
+fn buildLibs(
     b: *std.Build,
     options: Options,
     install_options: std.Build.Step.InstallArtifact.Options,
@@ -210,7 +216,9 @@ pub fn buildLibs(
             .target = target,
             .optimize = optimize,
         })) |zlib_dep| {
-            installLib(b, zlib_dep.artifact("z"), install_options, step);
+            const zlib = zlib_dep.artifact("z");
+            if (options.libc_file) |libc_file| zlib.setLibCFile(libc_file);
+            installLib(b, zlib, install_options, step);
         }
     }
 
@@ -219,7 +227,9 @@ pub fn buildLibs(
             .target = target,
             .optimize = optimize,
         })) |zstd_dep| {
-            installLib(b, zstd_dep.artifact("zstd"), install_options, step);
+            const zstd = zstd_dep.artifact("zstd");
+            if (options.libc_file) |libc_file| zstd.setLibCFile(libc_file);
+            installLib(b, zstd, install_options, step);
         }
     }
 
@@ -227,6 +237,7 @@ pub fn buildLibs(
         const spng = try Spng.get(b, target, optimize, spng_options, .{
             .libz = options.libz,
         });
+        if (options.libc_file) |libc_file| spng.setLibCFile(libc_file);
         installLib(b, spng, install_options, step);
     }
 
@@ -234,6 +245,7 @@ pub fn buildLibs(
     if (options.jpeg_turbo) |jpeg_turbo_options| {
         const jpeg = try JpegTurbo.get(b, target, optimize, jpeg_turbo_options);
         maybe_jpeg = jpeg;
+        if (options.libc_file) |libc_file| jpeg.setLibCFile(libc_file);
 
         installLib(b, jpeg, install_options, step);
     }
@@ -245,6 +257,7 @@ pub fn buildLibs(
             .libsharpyuv = options.libsharpyuv,
             .libz = options.libz,
         });
+        if (options.libc_file) |libc_file| webp.setLibCFile(libc_file);
 
         if (has_libjpeg) {
             const jpeg = maybe_jpeg orelse unreachable;
@@ -264,6 +277,7 @@ pub fn buildLibs(
             .liblzma = options.liblzma,
             .libzstd = options.libzstd,
         });
+        if (options.libc_file) |libc_file| tiff.setLibCFile(libc_file);
 
         if (has_libwebp) {
             const webp = maybe_webp orelse unreachable;
