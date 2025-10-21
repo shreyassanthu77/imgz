@@ -152,6 +152,7 @@ fn addToModule1(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
         const spng = try Spng.get(b, target, optimize, spng_options, .{
             .libz = options.libz,
         });
+        if (options.libc_file) |libc_file| spng.setLibCFile(libc_file);
         mod.linkLibrary(spng);
     }
 
@@ -159,6 +160,7 @@ fn addToModule1(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
     if (options.jpeg_turbo) |jpeg_turbo_options| {
         const jpeg = try JpegTurbo.get(b, target, optimize, jpeg_turbo_options);
         maybe_jpeg = jpeg;
+        if (options.libc_file) |libc_file| jpeg.setLibCFile(libc_file);
         mod.linkLibrary(jpeg);
     }
 
@@ -169,6 +171,8 @@ fn addToModule1(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
             .libsharpyuv = options.libsharpyuv,
             .libz = options.libz,
         });
+        if (options.libc_file) |libc_file| webp.setLibCFile(libc_file);
+
         if (has_libjpeg) {
             const jpeg = maybe_jpeg orelse unreachable;
             webp.linkLibrary(jpeg); // so that jpeg headers are available to webp
@@ -187,6 +191,8 @@ fn addToModule1(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
             .liblzma = options.liblzma,
             .libzstd = options.libzstd,
         });
+        if (options.libc_file) |libc_file| tiff.setLibCFile(libc_file);
+
         if (has_libwebp) {
             const webp = maybe_webp orelse unreachable;
             tiff.linkLibrary(webp); // so that webp headers are available to tiff
