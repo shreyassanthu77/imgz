@@ -1,5 +1,6 @@
 const std = @import("std");
 pub const RequiredLibrary = @import("src/formats/shared.zig").RequiredLibrary;
+pub const AndroidUtils = @import("src/formats/shared.zig").AndroidUtils;
 pub const Spng = @import("src/formats/spng.zig");
 pub const JpegTurbo = @import("src/formats/jpeg-turbo.zig");
 pub const Tiff = @import("src/formats/tiff.zig");
@@ -30,6 +31,11 @@ pub fn build(b: *std.Build) !void {
     const liblzma = b.option(bool, "liblzma", "Enable lzma support in libtiff. If enabled, system must have liblzma headers during build and the library during linking") orelse false;
     const libzstd = b.option(RequiredLibrary, "libzstd", "Choose which version of libzstd to use") orelse .bundled;
 
+    // Android Build related options
+    const ndk_sysroot = b.option([]const u8, "ndk_sysroot", "Path to the Android NDK sysroot directory (e.g., /path/to/ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot)") orelse "";
+    const android_api_version = b.option(u32, "android_api_version", "Android API level to target (e.g., 36 for Android 15)") orelse 36;
+    const ndk_version = b.option([]const u8, "ndk_version", "Version of the Android NDK to use (e.g., 26.0.10792818)") orelse "";
+
     const options = Options{
         .target = target,
         .optimize = optimize,
@@ -51,6 +57,9 @@ pub fn build(b: *std.Build) !void {
         .liblerc = if (liblerc) .custom else .disabled,
         .liblzma = if (liblzma) .custom else .disabled,
         .libzstd = libzstd,
+        .ndk_sysroot = ndk_sysroot,
+        .android_api_version = android_api_version,
+        .ndk_version = ndk_version,
     };
     try buildLibs(b, options, .{}, b.getInstallStep());
 
@@ -125,6 +134,10 @@ pub const Options = struct {
     liblzma: RequiredLibrary = .disabled,
     /// Required for tiff
     libzstd: RequiredLibrary = .bundled,
+
+    ndk_sysroot: []const u8 = "",
+    android_api_version: u32 = 36,
+    ndk_version: []const u8 = "",
 };
 
 pub fn addToModule(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
@@ -210,7 +223,7 @@ pub fn buildLibs(
             .target = target,
             .optimize = optimize,
         })) |zlib_dep| {
-            installLib(b, zlib_dep.artifact("z"), install_options, step);
+            try installLib(b, zlib_dep.artifact("z"), options, install_options, step);
         }
     }
 
@@ -219,7 +232,7 @@ pub fn buildLibs(
             .target = target,
             .optimize = optimize,
         })) |zstd_dep| {
-            installLib(b, zstd_dep.artifact("zstd"), install_options, step);
+            try installLib(b, zstd_dep.artifact("zstd"), options, install_options, step);
         }
     }
 
@@ -227,7 +240,7 @@ pub fn buildLibs(
         const spng = try Spng.get(b, target, optimize, spng_options, .{
             .libz = options.libz,
         });
-        installLib(b, spng, install_options, step);
+        try installLib(b, spng, options, install_options, step);
     }
 
     var maybe_jpeg: ?*std.Build.Step.Compile = null;
@@ -235,7 +248,7 @@ pub fn buildLibs(
         const jpeg = try JpegTurbo.get(b, target, optimize, jpeg_turbo_options);
         maybe_jpeg = jpeg;
 
-        installLib(b, jpeg, install_options, step);
+        try installLib(b, jpeg, options, install_options, step);
     }
 
     var maybe_webp: ?*std.Build.Step.Compile = null;
@@ -252,7 +265,7 @@ pub fn buildLibs(
         }
 
         maybe_webp = webp;
-        installLib(b, webp, install_options, step);
+        try installLib(b, webp, options, install_options, step);
     }
 
     if (options.tiff) |tiff_options| {
@@ -274,12 +287,27 @@ pub fn buildLibs(
             tiff.linkLibrary(jpeg); // so that jpeg headers are available to tiff
         }
 
-        installLib(b, tiff, install_options, step);
+        try installLib(b, tiff, options, install_options, step);
     }
 }
 
-fn installLib(b: *std.Build, lib: *std.Build.Step.Compile, options: std.Build.Step.InstallArtifact.Options, step: *std.Build.Step) void {
+fn installLib(b: *std.Build, lib: *std.Build.Step.Compile, options: Options, install_options: std.Build.Step.InstallArtifact.Options, step: *std.Build.Step) !void {
+    if (isTargetAndroid(lib.rootModuleTarget())) {
+        if (options.ndk_sysroot.len == 0) {
+            std.debug.print("error: ndk_sysroot must be specified for Android builds\n", .{});
+            return error.BuildFailed;
+        }
+
+        const android_triple = AndroidUtils.getAndroidTriple(lib.rootModuleTarget()) catch |err| @panic(@errorName(err));
+        const libc_config = AndroidUtils.createLibC(b, android_triple, options.android_api_version, options.ndk_sysroot, options.ndk_version);
+        lib.setLibCFile(libc_config);
+    }
+
     lib.bundle_ubsan_rt = true;
-    const artifact = b.addInstallArtifact(lib, options);
+    const artifact = b.addInstallArtifact(lib, install_options);
     step.dependOn(&artifact.step);
+}
+
+fn isTargetAndroid(target: std.Target) bool {
+    return target.abi == .android or target.abi == .androideabi;
 }
