@@ -148,6 +148,26 @@ fn addToModule1(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
     const has_libjpeg = options.jpeg_turbo != null;
     const has_libwebp = options.webp != null;
 
+    if (options.libz == .bundled and (options.spng != null or options.tiff != null)) {
+        if (b.lazyDependency("zlib", .{
+            .target = target,
+            .optimize = optimize,
+        })) |zlib_dep| {
+            const zlib = zlib_dep.artifact("z");
+            if (options.libc_file) |libc_file| zlib.setLibCFile(libc_file);
+        }
+    }
+
+    if (options.libzstd == .bundled and options.tiff != null) {
+        if (b.lazyDependency("zstd", .{
+            .target = target,
+            .optimize = optimize,
+        })) |zstd_dep| {
+            const zstd = zstd_dep.artifact("zstd");
+            if (options.libc_file) |libc_file| zstd.setLibCFile(libc_file);
+        }
+    }
+
     if (options.spng) |spng_options| {
         const spng = try Spng.get(b, target, optimize, spng_options, .{
             .libz = options.libz,
