@@ -14,10 +14,10 @@ test "tiff encode" {
 
     var temp_dir = std.testing.tmpDir(.{});
     defer temp_dir.cleanup();
-    (try temp_dir.dir.createFile("temp_output.tiff", .{})).close();
-    var output_path_buf = std.mem.zeroes([std.fs.max_path_bytes]u8);
-    const output_path = try temp_dir.dir.realpathZ("temp_output.tiff", &output_path_buf);
-
+    (try temp_dir.dir.createFile(std.testing.io, "temp_output.tiff", .{})).close(std.testing.io);
+    var output_path_buf = std.mem.zeroes([std.fs.max_path_bytes + 1]u8);
+    const output_path_size = try temp_dir.dir.realPathFile(std.testing.io, "temp_output.tiff", &output_path_buf);
+    const output_path = output_path_buf[0 .. output_path_size + 1]; // +1 for null terminator
     const tif = c.TIFFOpen(output_path.ptr, "w") orelse return error.FailedToCreateTIFF;
     defer _ = c.TIFFClose(tif);
 
@@ -35,7 +35,7 @@ test "tiff encode" {
         return error.FailedToEncode;
     }
 
-    const stat = try temp_dir.dir.statFile("temp_output.tiff");
+    const stat = try temp_dir.dir.statFile(std.testing.io, "temp_output.tiff", .{});
     try std.testing.expect(stat.size > 0);
 }
 

@@ -68,6 +68,7 @@ pub fn build(b: *std.Build) !void {
                 .target = target,
                 .optimize = optimize,
             }),
+            .use_llvm = true,
         });
         try addToModule1(b, test_exe.root_module, options);
         const run_test_exe = b.addRunArtifact(test_exe);
