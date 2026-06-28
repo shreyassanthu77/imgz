@@ -52,7 +52,7 @@ pub const LazyFileEditor = struct {
         const source_file_path = try self.source_file.getPath3(b, step).toString(b.allocator);
         defer b.allocator.free(source_file_path);
 
-        const source_file_contents = try std.fs.cwd().readFileAlloc(b.allocator, source_file_path, std.math.maxInt(usize));
+        const source_file_contents = try std.Io.Dir.cwd().readFileAlloc(b.graph.io, source_file_path, b.allocator, .unlimited);
         defer b.allocator.free(source_file_contents);
 
         var dest_writer = std.Io.Writer.Allocating.init(b.allocator);

@@ -1,8 +1,8 @@
 .{
     .name = .imgz,
-    .version = "0.2.0",
+    .version = "0.4.0",
 
-    .minimum_zig_version = "0.15.0",
+    .minimum_zig_version = "0.16.0",
     .paths = .{""},
     .fingerprint = 0xbd095aa490f3a106,
 
@@ -25,14 +25,14 @@
         },
         // used by spng and libtiff
         .zlib = .{
-            .url = "git+https://github.com/allyourcodebase/zlib#61e7df7e996ec5a5f13a653db3c419adb340d6ef",
-            .hash = "zlib-1.3.1-ZZQ7lbYMAAB1hTSOKSXAKAgHsfDcyWNH_37ojw5WSpgR",
+            .url = "git+https://github.com/allyourcodebase/zlib#d3b5519d3b73616a6bfece0712f080029d2a9244",
+            .hash = "zlib-1.3.2-ZZQ7lc8NAAAHm9MDfplvwoesXvk4tVm6VCsiI8KnIbT0",
             .lazy = true,
         },
         // used by libtiff
         .zstd = .{
-            .url = "git+https://github.com/allyourcodebase/zstd.git?ref=1.5.7#01327d49cbc56dc24c20a167bb0055d7fc23de84",
-            .hash = "zstd-1.5.7-KEItkJ8vAAC5_rRlKmLflYQ-eKXbAIQBWZNmmJtS18q0",
+            .url = "git+https://github.com/allyourcodebase/zstd.git#4ccb01e6fceae86fb9fe36c60b8a103cdc058155",
+            .hash = "zstd-1.5.7-2-KEItkAMwAADNhCbGaImKrjXjnSA51jcqEbGCA3RasVZ9",
             .lazy = true,
         },
         .libwebp_upstream = .{

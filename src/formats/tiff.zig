@@ -137,7 +137,7 @@ pub fn get(
 
         const tiffvers = blk: {
             const version_file = tiff_upstream.path("VERSION").getPath(b);
-            const version = try std.fs.cwd().readFileAlloc(b.allocator, version_file, 1024);
+            const version = try std.Io.Dir.cwd().readFileAlloc(b.graph.io, version_file, b.allocator, .unlimited);
             const version_trimmed = std.mem.trim(u8, version, " \n");
             var version_split = std.mem.splitScalar(u8, version_trimmed, '.');
             const major_version = try std.fmt.parseInt(u16, version_split.next() orelse return error.InvalidVersion, 10);
@@ -145,7 +145,7 @@ pub fn get(
             const micro_version = try std.fmt.parseInt(u16, version_split.next() orelse return error.InvalidVersion, 10);
 
             const release_date_file = tiff_upstream.path("RELEASE-DATE").getPath(b);
-            const release_date = try std.fs.cwd().readFileAlloc(b.allocator, release_date_file, 1024);
+            const release_date = try std.Io.Dir.cwd().readFileAlloc(b.graph.io, release_date_file, b.allocator, .unlimited);
 
             const tiffvers = b.addConfigHeader(.{
                 .style = .{ .cmake = tiff_upstream.path("libtiff/tiffvers.h.cmake.in") },

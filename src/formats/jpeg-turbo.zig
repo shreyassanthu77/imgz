@@ -23,7 +23,7 @@ pub fn get(
     const with_simd = options.simd and !target.result.cpu.arch.isRISCV();
 
     const libjpeg_turbo_version_number = computeVersionNumber(conf.version);
-    const build_date = try computeBuildDate(b.allocator);
+    const build_date = try computeBuildDate(b.allocator, b.graph.io);
 
     const mod = b.createModule(.{
         .target = target,
@@ -529,8 +529,8 @@ fn computeVersionNumber(version: []const u8) u32 {
     return result;
 }
 
-fn computeBuildDate(allocator: std.mem.Allocator) ![]u8 {
-    const epoch_seconds = std.time.timestamp();
+fn computeBuildDate(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
+    const epoch_seconds = std.Io.Timestamp.now(io, .awake).toSeconds();
 
     const days_since_epoch = @divFloor(epoch_seconds, 86_400);
     const days_from_ce = days_since_epoch + 719_468;

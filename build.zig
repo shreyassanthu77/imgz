@@ -165,7 +165,7 @@ fn addToModule1(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
         });
         if (has_libjpeg) {
             const jpeg = maybe_jpeg orelse unreachable;
-            webp.linkLibrary(jpeg); // so that jpeg headers are available to webp
+            webp.root_module.linkLibrary(jpeg); // so that jpeg headers are available to webp
         }
 
         maybe_webp = webp;
@@ -183,11 +183,11 @@ fn addToModule1(b: *std.Build, mod: *std.Build.Module, options: Options) !void {
         });
         if (has_libwebp) {
             const webp = maybe_webp orelse unreachable;
-            tiff.linkLibrary(webp); // so that webp headers are available to tiff
+            tiff.root_module.linkLibrary(webp); // so that webp headers are available to tiff
         }
         if (has_libjpeg) {
             const jpeg = maybe_jpeg orelse unreachable;
-            tiff.linkLibrary(jpeg); // so that jpeg headers are available to tiff
+            tiff.root_module.linkLibrary(jpeg); // so that jpeg headers are available to tiff
         }
         mod.linkLibrary(tiff);
     }
@@ -248,7 +248,7 @@ pub fn buildLibs(
 
         if (has_libjpeg) {
             const jpeg = maybe_jpeg orelse unreachable;
-            webp.linkLibrary(jpeg); // so that jpeg headers are available to webp
+            webp.root_module.linkLibrary(jpeg); // so that jpeg headers are available to webp
         }
 
         maybe_webp = webp;
@@ -267,11 +267,11 @@ pub fn buildLibs(
 
         if (has_libwebp) {
             const webp = maybe_webp orelse unreachable;
-            tiff.linkLibrary(webp); // so that webp headers are available to tiff
+            tiff.root_module.linkLibrary(webp); // so that webp headers are available to tiff
         }
         if (has_libjpeg) {
             const jpeg = maybe_jpeg orelse unreachable;
-            tiff.linkLibrary(jpeg); // so that jpeg headers are available to tiff
+            tiff.root_module.linkLibrary(jpeg); // so that jpeg headers are available to tiff
         }
 
         installLib(b, tiff, install_options, step);
