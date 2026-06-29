@@ -55,19 +55,9 @@ pub fn get(
             .root = spng_dep.path("spng"),
         });
 
-        const spng_out_h_gen = LazyFileEditor.create(b, spng_dep.path("spng/spng.h"), "spng.h", spng_header_editor);
+        const spng_out_h_gen = LazyFileEditor.create(b, spng_dep.path("spng/spng.h"), "spng.h", b.path("tools/spng-header-editor.zig"));
         lib.installHeader(spng_out_h_gen.result, "spng.h");
     }
 
     return lib;
-}
-
-fn spng_header_editor(source_contents: []const u8, out_writer: *std.Io.Writer) anyerror!void {
-    try out_writer.writeAll(
-        \\#ifndef SPNG_STATIC
-        \\#define SPNG_STATIC
-        \\#endif
-        \\
-    );
-    try out_writer.writeAll(source_contents);
 }

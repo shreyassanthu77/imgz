@@ -85,7 +85,6 @@ pub fn get(
             .STRIP_SIZE_DEFAULT = 8192,
             .TIFF_MAX_DIR_COUNT = 65535,
             .LIBJPEG_12_PATH = "jpeglib.h",
-            .PACKAGE = "libtiff",
             .PACKAGE_NAME = "libtiff",
             .PACKAGE_TARNAME = "libtiff",
             .PACKAGE_URL = "https://libtiff.gitlab.io/libtiff/",
@@ -135,37 +134,11 @@ pub fn get(
             .VAR = "lol",
         });
 
-        const tiffvers = blk: {
-            const version_file = tiff_upstream.path("VERSION").getPath(b);
-            const version = try std.Io.Dir.cwd().readFileAlloc(b.graph.io, version_file, b.allocator, .unlimited);
-            const version_trimmed = std.mem.trim(u8, version, " \n");
-            var version_split = std.mem.splitScalar(u8, version_trimmed, '.');
-            const major_version = try std.fmt.parseInt(u16, version_split.next() orelse return error.InvalidVersion, 10);
-            const minor_version = try std.fmt.parseInt(u16, version_split.next() orelse return error.InvalidVersion, 10);
-            const micro_version = try std.fmt.parseInt(u16, version_split.next() orelse return error.InvalidVersion, 10);
-
-            const release_date_file = tiff_upstream.path("RELEASE-DATE").getPath(b);
-            const release_date = try std.Io.Dir.cwd().readFileAlloc(b.graph.io, release_date_file, b.allocator, .unlimited);
-
-            const tiffvers = b.addConfigHeader(.{
-                .style = .{ .cmake = tiff_upstream.path("libtiff/tiffvers.h.cmake.in") },
-                .include_path = "tiffvers.h",
-            }, .{
-                .LIBTIFF_VERSION = version_trimmed,
-                .LIBTIFF_RELEASE_DATE = release_date,
-                .LIBTIFF_MAJOR_VERSION = major_version,
-                .LIBTIFF_MINOR_VERSION = minor_version,
-                .LIBTIFF_MICRO_VERSION = micro_version,
-
-                .VAR = "lol",
-            });
-
-            break :blk tiffvers;
-        };
+        const tiffvers = tiffVersHeader(b, tiff_upstream);
 
         mod.addConfigHeader(tif_config);
         mod.addConfigHeader(tiffconf);
-        mod.addConfigHeader(tiffvers);
+        mod.addIncludePath(tiffvers.dirname());
         mod.addIncludePath(tiff_upstream.path("libtiff"));
 
         mod.addCSourceFiles(.{
@@ -270,10 +243,25 @@ pub fn get(
 
         lib.installHeader(tiff_upstream.path("libtiff/tiff.h"), "tiff.h");
         lib.installHeader(tiff_upstream.path("libtiff/tiffio.h"), "tiffio.h");
-        lib.installConfigHeader(tiffvers);
+        lib.installHeader(tiffvers, "tiffvers.h");
         lib.installConfigHeader(tif_config);
         lib.installConfigHeader(tiffconf);
     }
 
     return lib;
+}
+
+fn tiffVersHeader(b: *std.Build, tiff_upstream: *std.Build.Dependency) std.Build.LazyPath {
+    const editor_exe = b.addExecutable(.{
+        .name = "tiffvers-editor",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/tiffvers-editor.zig"),
+            .target = b.graph.host,
+        }),
+    });
+    const run_editor = b.addRunArtifact(editor_exe);
+    run_editor.addFileArg(tiff_upstream.path("libtiff/tiffvers.h.cmake.in"));
+    run_editor.addFileArg(tiff_upstream.path("VERSION"));
+    run_editor.addFileArg(tiff_upstream.path("RELEASE-DATE"));
+    return run_editor.captureStdOut(.{ .basename = "tiffvers.h" });
 }

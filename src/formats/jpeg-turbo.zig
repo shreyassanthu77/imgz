@@ -41,7 +41,6 @@ pub fn get(
             .style = .{ .cmake = j.path("src/jconfig.h.in") },
         }, .{
             .VERSION = conf.version,
-            .LIBJPEG_TURBO_VERSION = conf.version,
             .LIBJPEG_TURBO_VERSION_NUMBER = libjpeg_turbo_version_number,
             .JPEG_LIB_VERSION = conf.jpeg_lib_version,
             .WITH_SIMD = with_simd,
@@ -280,7 +279,7 @@ pub fn get(
                     };
 
                     for (asm_files) |asm_file| {
-                        const obj_file = nasmCompile(b, j, target, "simd/x86_64", j.path(asm_file), lib.pie orelse false);
+                        const obj_file = nasmCompile(b, j, target, "simd/x86_64", asm_file, j.path(asm_file), lib.pie orelse false);
                         mod.addObjectFile(obj_file);
                     }
 
@@ -339,7 +338,7 @@ pub fn get(
                     };
 
                     for (asm_files) |asm_file| {
-                        const obj_file = nasmCompile(b, j, target, "simd/i386", j.path(asm_file), lib.pie orelse false);
+                        const obj_file = nasmCompile(b, j, target, "simd/i386", asm_file, j.path(asm_file), lib.pie orelse false);
                         mod.addObjectFile(obj_file);
                     }
 
@@ -465,6 +464,7 @@ fn nasmCompile(
     j: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
     include_path: []const u8,
+    asm_file_name: []const u8,
     asm_file: std.Build.LazyPath,
     pic: bool,
 ) std.Build.LazyPath {
@@ -505,8 +505,7 @@ fn nasmCompile(
 
     run_nasm.addArg("-o");
 
-    const asm_file_path = asm_file.getDisplayName();
-    const obj_basename = std.fs.path.stem(asm_file_path);
+    const obj_basename = std.fs.path.stem(std.fs.path.basename(asm_file_name));
     const obj_ext = ofmt.fileExt(arch);
     const obj_name = b.fmt("{s}{s}", .{ obj_basename, obj_ext });
     const obj_file = run_nasm.addOutputFileArg(obj_name);
